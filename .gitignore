@@ -1,0 +1,40 @@
+# OS
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+.DS_Store
+
+# Editors / AI agents
+.idea/
+.vscode/
+.cursor/
+.trae/
+.claude/
+*.swp
+*.swo
+
+# Node / frontend (later)
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# Rust / Tauri (later)
+target/
+src-tauri/target/
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+
+# Local databases
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Logs and caches
+*.log
+.cache/
