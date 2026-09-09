@@ -1,0 +1,93 @@
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/noto-sans-sc/400.css";
+@import "@fontsource/noto-sans-sc/500.css";
+
+:root,
+[data-theme="light"] {
+  --bg: #f4f4f5;
+  --surface: #fafafa;
+  --line: #d4d4d8;
+  --text: #18181b;
+  --muted: #71717a;
+  --accent-in: #0e7490;
+  --accent-out: #c2410c;
+  --accent-neutral: #52525b;
+  --danger: #b91c1c;
+  --focus: #3f3f46;
+  --fill: #e4e4e7;
+  --titlebar: #e4e4e7;
+}
+
+[data-theme="dark"] {
+  --bg: #18181b;
+  --surface: #27272a;
+  --line: #3f3f46;
+  --text: #fafafa;
+  --muted: #a1a1aa;
+  --accent-in: #22d3ee;
+  --accent-out: #fb923c;
+  --accent-neutral: #a1a1aa;
+  --danger: #f87171;
+  --focus: #d4d4d8;
+  --fill: #3f3f46;
+  --titlebar: #27272a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "IBM Plex Sans", "Noto Sans SC", sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--bg);
+  user-select: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 13px;
+  color: inherit;
+}
+
+.mono {
+  font-family: "IBM Plex Mono", "Noto Sans SC", monospace;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+}

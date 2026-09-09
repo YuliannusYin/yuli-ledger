@@ -1,6 +1,8 @@
 # Architecture
 
-Target runtime: **one Windows desktop process**, **no server**, **no network requirement**. Coding has not started; this document constrains the later Tauri app. It does not pick a CSS framework or a concrete ORM.
+Target runtime: **one Windows desktop process**, **no server**, **no network requirement**. The shipped product is a **normal Windows program**: double-click an `.exe` (or a Start Menu shortcut after setup). It is **not** a site you open in Chrome, and **not** a frontend + backend you deploy with the CLI.
+
+**Developers** still install Node.js and Rust to *build* it. **You, using the finished app**, do not.
 
 Product constraints: [product.md](product.md). Data shape: [domain-model.md](domain-model.md). Visual language: [ui.md](ui.md) (zinc, compact, IBM Plex / Noto Sans SC). Do not pick Ant Design / MUI defaults.
 
@@ -8,12 +10,28 @@ Product constraints: [product.md](product.md). Data shape: [domain-model.md](dom
 
 | Layer | Choice |
 |-------|--------|
-| Shell | Tauri 2 |
-| UI | Web frontend (TypeScript) inside the WebView |
-| Persistence | SQLite, one file |
-| OS | Windows; other desktops are non-goals for v1 |
+| Shell | **Tauri 2** (WebView2 on Windows, bundled with the OS on current Windows 10/11) |
+| UI | **React** + **Vite** + **TypeScript** inside that WebView — never a browser tab the user launches |
+| Core | **Rust** Tauri commands + kind registry + SQLite access |
+| Persistence | **SQLite** via **rusqlite** with bundled SQLite (one file) |
+| OS | Windows only for v1 |
 
-No Electron. No hosted API. The UI must not talk to SQLite through a WebView filesystem hack; all reads and writes go through Tauri commands.
+No Electron. No hosted API. No `npm start` as the way to *use* the ledger. The UI must not talk to SQLite through a WebView filesystem hack; all reads and writes go through Tauri commands.
+
+Charts: a small React-friendly library is allowed if it can do point-line, pie, and bars in [ui.md](ui.md) tokens (see that file). CSS is hand-written variables, not a component kit.
+
+i18n catalogs live with the React app ([i18n.md](i18n.md)). A React i18n helper (for example i18next) is an implementation detail as long as English remains the source locale.
+
+## What you click when it is done
+
+v1 ships **both**:
+
+1. **NSIS installer** (`YuliLedger_x.y.z_x64-setup.exe` or similar): Start Menu entry, uninstaller in Windows Settings.
+2. **Portable folder**: unzip, double-click `Yuli Ledger.exe` (or `yuli-ledger.exe`). No install step. Database still lives under `%LOCALAPPDATA%\YuliLedger\` so portable and installed copies share one ledger unless we later add a portable-data mode (out of v1).
+
+Neither artifact starts a terminal, a Node server, or a browser.
+
+`tauri dev` is **only** for coding. It may open a window that looks like the app; it is not the release.
 
 ## Process shape
 
@@ -80,6 +98,7 @@ UI strings live with the frontend catalogs ([i18n.md](i18n.md)). Rust errors des
 
 ## Explicitly deferred
 
-- Auto-updater, code signing policy (decide at first distribution)
+- Auto-updater, Authenticode **code signing** (decide when you first share the installer outside this PC)
 - Plugin system for kinds (a compiled registry is enough)
 - Multiple database files / switcher UI
+- Portable mode that stores `ledger.sqlite` next to the exe (v1 always uses LocalAppData)
