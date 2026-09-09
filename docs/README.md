@@ -31,3 +31,20 @@ These files are the source of truth for Yuli Ledger. They describe *what* to bui
 | Look | Cold zinc instrument, compact, light + dark ([ui.md](ui.md)) |
 
 Out of v1: phone clients, network, sync, bill import, full double-entry, extra currencies, budgets, debt/prepaid *remaining-balance* ledgers, prepayment settlement.
+
+## Implementation notes
+
+These are build and UX choices. They do not change entity shapes in [domain-model.md](domain-model.md) or [entry-kinds.md](entry-kinds.md).
+
+- App version starts at `0.1.0` until a tagged roadmap v1 release.
+- Kind registry lives only in Rust. The UI loads `id` / `labelKey` / flags via `list_kinds`. SQLite has no `CHECK (kind_id IN (…))`.
+- Database path is always `%LOCALAPPDATA%\YuliLedger\ledger.sqlite` (not the Tauri bundle identifier folder). Tauri identifier is `com.yuliledger.desktop`.
+- `LedgerSettings` is a single row (`id = 1`) with `schema_version = 1`. Entity primary keys are UUIDs generated in Rust.
+- Seed Default account: `openingAt = 1970-01-01T00:00:00Z`, `openingBalanceMinor = 0`, `accountKind = other`. Preset `name` is stored `NULL` until the user renames.
+- v1 does not add an `archived` column. Pickers and ledger filters use every existing account.
+- Creating a main category also inserts one child named Other / 其他 for the active UI language (`presetKey = null`).
+- Account list, main categories, and subs under one main reorder by pointer drag (`sortOrder`).
+- Charts use visx (point-line, pie, bars) styled with [ui.md](ui.md) tokens.
+- Command `occurredAt` is UTC ISO-8601 with seconds set to `0`. Report range and buckets use `chrono::Local` (not UTC `strftime` as a calendar day).
+- Ledger `expense` filter excludes transfer fees; the report expense side includes them.
+- NSIS installer filename follows Tauri (`Yuli Ledger_<version>_x64-setup.exe`). Portable folder is `release/portable/` after `npm run package:portable`. WebView2 is not bundled (`webviewInstallMode: skip`).
