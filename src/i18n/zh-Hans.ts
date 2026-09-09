@@ -132,6 +132,7 @@ const zhHans: Record<string, string> = {
   "ledger.empty": "还没有记录。先记第一笔。",
   "ledger.filterEmpty": "没有符合筛选条件的记录。",
   "ledger.thisMonth": "本月",
+  "ledger.all": "全部",
   "ledger.kind": "种类",
   "ledger.time": "时间",
   "ledger.amount": "金额",

@@ -35,14 +35,14 @@ export default function LedgerScreen({
   onChanged: () => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const month = monthRange();
-  const [fromDate, setFromDate] = useState(month.from);
-  const [toDate, setToDate] = useState(month.to);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [kindIds, setKindIds] = useState<string[]>([]);
   const [accountIds, setAccountIds] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [tagId, setTagId] = useState("");
   const [noteContains, setNoteContains] = useState("");
+  const [applied, setApplied] = useState(emptyApplied);
   const [rows, setRows] = useState<EntryDto[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
@@ -52,25 +52,31 @@ export default function LedgerScreen({
 
   const selectedRow = rows.find((r) => r.id === selected) ?? null;
 
-  async function load(next?: { from?: string; to?: string; kinds?: string[]; select?: string }) {
+  async function load(next?: LoadOpts) {
     const f = next?.from ?? fromDate;
     const to = next?.to ?? toDate;
     const ks = next?.kinds ?? kindIds;
+    const accIds = next?.accounts ?? accountIds;
+    const cat = next?.category ?? categoryId;
+    const tag = next?.tag ?? tagId;
+    const note = next?.note ?? noteContains;
     const list = await listEntries({
-      fromDate: f,
-      toDate: to,
+      fromDate: f || null,
+      toDate: to || null,
       kindIds: ks,
-      accountIds,
-      categoryId: categoryId || null,
-      tagId: tagId || null,
-      noteContains: noteContains || null,
+      accountIds: accIds,
+      categoryId: cat || null,
+      tagId: tag || null,
+      noteContains: note || null,
     });
     setRows(list);
     setLoaded(true);
+    setApplied({ from: f, to, kinds: ks, accounts: accIds, category: cat, tag, note });
     if (next?.select) setSelected(next.select);
   }
 
   useEffect(() => {
+    if (jump) return;
     void load().catch(() => setLoaded(true));
     // initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,7 +87,9 @@ export default function LedgerScreen({
     setFromDate(jump.fromDate);
     setToDate(jump.toDate);
     setKindIds(jump.kindIds);
-    void load({ from: jump.fromDate, to: jump.toDate, kinds: jump.kindIds, select: jump.entryId });
+    void load({ from: jump.fromDate, to: jump.toDate, kinds: jump.kindIds, select: jump.entryId }).catch(
+      () => setLoaded(true),
+    );
     onJumpConsumed();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jump]);
@@ -156,14 +164,7 @@ export default function LedgerScreen({
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const emptyAll =
-    loaded &&
-    rows.length === 0 &&
-    !noteContains &&
-    !categoryId &&
-    !tagId &&
-    kindIds.length === 0 &&
-    accountIds.length === 0;
+  const emptyAll = loaded && rows.length === 0 && !appliedActive(applied);
 
   return (
     <div>
@@ -250,6 +251,30 @@ export default function LedgerScreen({
           }}
         >
           {t("ledger.thisMonth")}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            setFromDate("");
+            setToDate("");
+            setKindIds([]);
+            setAccountIds([]);
+            setCategoryId("");
+            setTagId("");
+            setNoteContains("");
+            void load({
+              from: "",
+              to: "",
+              kinds: [],
+              accounts: [],
+              category: "",
+              tag: "",
+              note: "",
+            });
+          }}
+        >
+          {t("ledger.all")}
         </button>
       </div>
       <div className="ledger-layout">
@@ -354,6 +379,34 @@ export default function LedgerScreen({
         />
       )}
     </div>
+  );
+}
+
+type AppliedFilter = {
+  from: string;
+  to: string;
+  kinds: string[];
+  accounts: string[];
+  category: string;
+  tag: string;
+  note: string;
+};
+
+type LoadOpts = Partial<AppliedFilter> & { select?: string };
+
+const emptyApplied: AppliedFilter = {
+  from: "",
+  to: "",
+  kinds: [],
+  accounts: [],
+  category: "",
+  tag: "",
+  note: "",
+};
+
+function appliedActive(f: AppliedFilter): boolean {
+  return Boolean(
+    f.from || f.to || f.kinds.length || f.accounts.length || f.category || f.tag || f.note.trim(),
   );
 }
 

@@ -106,8 +106,8 @@ export type AccountWrite = {
 };
 
 export type LedgerFilter = {
-  fromDate: string;
-  toDate: string;
+  fromDate: string | null;
+  toDate: string | null;
   kindIds: string[];
   accountIds: string[];
   categoryId: string | null;

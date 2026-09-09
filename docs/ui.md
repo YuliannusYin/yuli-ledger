@@ -127,7 +127,7 @@ Job: under a minute, preferably **one glance + keyboard**.
 
 - **Table**, not a feed of cards. Columns: time, kind, amount, account(s), category, tags, note excerpt.
 - Transfer cells: `Source → Dest` on one line; amount column shows source, and dest/fee if different, in muted mono.
-- Sticky filter bar: period, kind, account, category, tag, note contains. Compact inputs; “this month” is a text control, not a large calendar hero.
+- Sticky filter bar: period, kind, account, category, tag, note contains. Compact inputs; “this month” and “all” are text controls, not a large calendar hero. Date fields start empty (no time bound) until the user filters.
 - Row hover: slight surface shift. Selected row: hairline inside the row + inspector open.
 - Empty: one muted sentence + control to go to Record. No illustration.
 

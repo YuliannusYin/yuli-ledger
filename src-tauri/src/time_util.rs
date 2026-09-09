@@ -28,6 +28,20 @@ pub fn parse_local_date(s: &str) -> Result<NaiveDate> {
     NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| AppError::new("error.dateInvalid"))
 }
 
+pub fn parse_optional_local_date(raw: &Option<String>) -> Result<Option<NaiveDate>> {
+    match raw {
+        Some(s) => {
+            let s = s.trim();
+            if s.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(parse_local_date(s)?))
+            }
+        }
+        None => Ok(None),
+    }
+}
+
 pub fn format_local_date(d: NaiveDate) -> String {
     d.format("%Y-%m-%d").to_string()
 }
@@ -112,8 +126,26 @@ pub fn custom_range_ok(from: NaiveDate, to: NaiveDate) -> Result<()> {
 }
 
 pub fn in_local_range(occurred_at: &str, from: NaiveDate, to: NaiveDate) -> Result<bool> {
+    in_optional_local_range(occurred_at, Some(from), Some(to))
+}
+
+pub fn in_optional_local_range(
+    occurred_at: &str,
+    from: Option<NaiveDate>,
+    to: Option<NaiveDate>,
+) -> Result<bool> {
     let d = occurred_local_date(occurred_at)?;
-    Ok(d >= from && d <= to)
+    if let Some(from) = from {
+        if d < from {
+            return Ok(false);
+        }
+    }
+    if let Some(to) = to {
+        if d > to {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 /// Instant compare documented as `occurred_at >= opening_at`.
@@ -135,5 +167,23 @@ mod tests {
     fn seconds_zeroed() {
         let dt = parse_utc_minute("2026-09-09T12:30:45Z").unwrap();
         assert_eq!(format_utc_minute(dt), "2026-09-09T12:30:00Z");
+    }
+
+    #[test]
+    fn optional_dates_and_open_range() {
+        assert_eq!(parse_optional_local_date(&None).unwrap(), None);
+        assert_eq!(parse_optional_local_date(&Some("  ".into())).unwrap(), None);
+        assert_eq!(
+            parse_optional_local_date(&Some("2026-09-09".into())).unwrap(),
+            Some(NaiveDate::from_ymd_opt(2026, 9, 9).unwrap())
+        );
+
+        let occurred = "2026-09-09T12:00:00Z";
+        let d = occurred_local_date(occurred).unwrap();
+        assert!(in_optional_local_range(occurred, None, None).unwrap());
+        assert!(in_optional_local_range(occurred, Some(d), None).unwrap());
+        assert!(in_optional_local_range(occurred, None, Some(d)).unwrap());
+        assert!(!in_optional_local_range(occurred, Some(d + Duration::days(1)), None).unwrap());
+        assert!(!in_optional_local_range(occurred, None, Some(d - Duration::days(1))).unwrap());
     }
 }

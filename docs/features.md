@@ -65,7 +65,7 @@ No bulk recategorize in v1. Occupied rows stay until the user edits or deletes t
 
 ## Ledger
 
-The ledger is the chronological book of entries, newest `occurredAt` first. Tie-break: `createdAt` descending, then `id`.
+The ledger is the chronological book of entries, newest `occurredAt` first. Tie-break: `createdAt` descending, then `id`. It opens listing **every** entry. Filters apply only when the user runs them, uses a preset, or jumps from Reports.
 
 Each row shows enough to scan: occurred at (local), kind label, amount, account(s), category (and fee category when a transfer has a fee), tags, note excerpt.
 
@@ -79,7 +79,7 @@ Combine with AND:
 
 | Filter | Behavior |
 |--------|----------|
-| Time range | Inclusive local-calendar range on `occurredAt`. Empty range is invalid; “this month” is a convenience preset. |
+| Time range | Inclusive local-calendar range on `occurredAt`. Omitted bounds are unbounded (both empty = all time). One-sided ranges are allowed. Both ends set with from > to is invalid. “This month” fills the current local month and applies immediately. “All” clears every filter and lists all entries. |
 | Kind | One or more implemented kinds. |
 | Account | One or more accounts (include archived if they still have rows). An entry matches if `accountId` **or** `counterAccountId` is in the set. |
 | Category | A main category (all its subs) or one subcategory. Matches `categoryId` or `feeCategoryId`. |
@@ -90,8 +90,8 @@ No search engine, no pinyin index, no full-text virtual table required in v1.
 
 ### Empty and error states
 
-- No entries at all: explain how to record the first one.
-- Filters match nothing: say so; do not reuse the first-run empty copy.
+- No entries at all (no filters applied): explain how to record the first one.
+- Applied filters match nothing: say so; do not reuse the first-run empty copy. Empty vs filter-empty follows the **last applied** filter set, not draft fields the user has not run yet.
 
 ## Reports
 

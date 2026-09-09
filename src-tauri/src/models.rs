@@ -101,8 +101,10 @@ pub struct EntryWrite {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LedgerFilter {
-    pub from_date: String,
-    pub to_date: String,
+    #[serde(default)]
+    pub from_date: Option<String>,
+    #[serde(default)]
+    pub to_date: Option<String>,
     #[serde(default)]
     pub kind_ids: Vec<String>,
     #[serde(default)]

@@ -132,6 +132,7 @@ const en = {
   "ledger.empty": "No entries yet. Record the first one.",
   "ledger.filterEmpty": "No entries match these filters.",
   "ledger.thisMonth": "This month",
+  "ledger.all": "All",
   "ledger.kind": "Kind",
   "ledger.time": "Time",
   "ledger.amount": "Amount",

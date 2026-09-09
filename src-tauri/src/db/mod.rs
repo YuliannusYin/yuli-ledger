@@ -3,7 +3,7 @@ mod seed;
 
 use std::path::{Path, PathBuf};
 
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, params_from_iter, Connection, OptionalExtension};
 use uuid::Uuid;
 
 use crate::balance;
@@ -614,22 +614,40 @@ pub fn delete_entry(conn: &Connection, id: &str) -> Result<()> {
 }
 
 pub fn list_entries(conn: &Connection, filter: &LedgerFilter) -> Result<Vec<EntryDto>> {
-    let from = time_util::parse_local_date(&filter.from_date)?;
-    let to = time_util::parse_local_date(&filter.to_date)?;
-    if from > to {
-        return Err(AppError::new("error.invalidRange"));
+    let from = time_util::parse_optional_local_date(&filter.from_date)?;
+    let to = time_util::parse_optional_local_date(&filter.to_date)?;
+    if let (Some(from), Some(to)) = (from, to) {
+        if from > to {
+            return Err(AppError::new("error.invalidRange"));
+        }
     }
-    let start = time_util::format_utc_minute(time_util::local_date_start_utc(from));
-    let end = time_util::local_date_end_utc(to).format("%Y-%m-%dT%H:%M:%SZ").to_string();
 
-    let mut stmt = conn.prepare(
+    let mut sql = String::from(
         "SELECT id, kind_id, amount_minor, occurred_at, account_id, counter_account_id,
                 counter_amount_minor, category_id, fee_category_id, note, kind_payload,
-                created_at, updated_at FROM entry
-         WHERE occurred_at >= ?1 AND occurred_at <= ?2
-         ORDER BY occurred_at DESC, created_at DESC, id DESC",
-    )?;
-    let rows = stmt.query_map(params![start, end], map_entry_row)?;
+                created_at, updated_at FROM entry",
+    );
+    let mut binds: Vec<String> = Vec::new();
+    if let Some(from) = from {
+        let start = time_util::format_utc_minute(time_util::local_date_start_utc(from));
+        binds.push(start);
+        sql.push_str(&format!(" WHERE occurred_at >= ?{}", binds.len()));
+    }
+    if let Some(to) = to {
+        let end = time_util::local_date_end_utc(to)
+            .format("%Y-%m-%dT%H:%M:%SZ")
+            .to_string();
+        binds.push(end);
+        if binds.len() == 1 {
+            sql.push_str(" WHERE occurred_at <= ?1");
+        } else {
+            sql.push_str(" AND occurred_at <= ?2");
+        }
+    }
+    sql.push_str(" ORDER BY occurred_at DESC, created_at DESC, id DESC");
+
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(params_from_iter(binds.iter()), map_entry_row)?;
     let mut collected = Vec::new();
     for row in rows {
         collected.push(row?);
@@ -643,7 +661,7 @@ pub fn list_entries(conn: &Connection, filter: &LedgerFilter) -> Result<Vec<Entr
 
     let mut out = Vec::new();
     for row in collected {
-        if !time_util::in_local_range(&row.occurred_at, from, to)? {
+        if !time_util::in_optional_local_range(&row.occurred_at, from, to)? {
             continue;
         }
         if !filter.kind_ids.is_empty() && !filter.kind_ids.iter().any(|k| k == &row.kind_id) {
