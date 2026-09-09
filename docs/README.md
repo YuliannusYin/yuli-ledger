@@ -20,7 +20,7 @@ These files are the source of truth for Yuli Ledger. They describe *what* to bui
 | Area | v1 |
 |------|----|
 | Platform | Windows desktop only, offline, single machine |
-| Stack (when coding starts) | Tauri 2, web UI, SQLite |
+| Stack (when coding starts) | Tauri 2, React, Vite, TypeScript, rusqlite; NSIS installer + portable folder |
 | Smallest unit | **Entry** |
 | Entry kinds | `income`, `expense`, `repayment`, `prepayment`, `transfer` (registry, not a closed enum) |
 | Classification | User-owned two-level tree, seeded then editable ([preset-categories.md](preset-categories.md)) |

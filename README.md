@@ -6,7 +6,7 @@
 
 Personal, offline bookkeeping for a single Windows PC. Not a phone app, not a cloud product, not a commercial money suite.
 
-**Status:** design documentation only. Implementation (Tauri 2, web UI, SQLite) has not started.
+**Status:** design documentation only. Implementation (Tauri 2, React, Vite, TypeScript, SQLite) has not started. The finished app is a Windows `.exe` (installer and portable), not a site in the browser.
 
 ## Docs
 

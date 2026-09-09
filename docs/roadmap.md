@@ -14,6 +14,7 @@ You can run a Windows desktop build (Tauri) that:
 - Switches UI language between `en` and `zh-Hans`, and color scheme light/dark/system
 - UI follows [ui.md](ui.md) (zinc, compact Record loop)
 - Stores everything in `%LOCALAPPDATA%\YuliLedger\ledger.sqlite` and shows that path for backup
+- Can be built into an **NSIS installer** and a **portable folder**; both open a desktop window, not a browser
 
 v1 is **not** done when the kind registry exists only on paper; the registry must be the runtime source for kinds, balance effects, and report buckets.
 
