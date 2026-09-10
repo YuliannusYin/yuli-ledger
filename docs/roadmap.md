@@ -23,7 +23,7 @@ v1 is **not** done when the kind registry exists only on paper; the registry mus
 - Phone, web hosting, LAN sync, or any multi-device story
 - Network features (login, telemetry, required updater)
 - WeChat / Alipay / bank **import** (manual `transfer` is in)
-- Liability remaining balances; prepaid-asset ledger; **settlement** of prepayment into expense
+- Liability remaining **entities**; prepaid-asset ledger; **settlement** of prepayment into expense. Per-account derived **debt** is in v1.
 - A dedicated WeChat-withdrawal kind (use `transfer`)
 - Multi-currency, budgets, attachments, recurring templates
 - Soft delete, trash, or audit log UI
@@ -35,7 +35,7 @@ v1 is **not** done when the kind registry exists only on paper; the registry mus
 Order can change; dependencies cannot.
 
 1. **Quality of life** — CSV export, more filters, tag report, recurring drafts, attachments.
-2. **Named debts** — remaining balance on a liability; `repayment` payload points at it; still `reportBucket: none`.
+2. **Named debts** — a dedicated liability entity beyond the per-account derived debt number; `repayment` payload may point at it; still `reportBucket: none`.
 3. **Prepayment settlement** — consume a prepayment into `expense` (or a settlement kind) **without** moving cash a second time.
 4. **Budgets** — sit on categories and time ranges; they must not alter posted entries.
 5. **Extra currencies** — ledger-level or per-account; this is a deliberate schema project, not a column sneak-in.

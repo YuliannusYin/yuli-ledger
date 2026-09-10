@@ -106,15 +106,17 @@ export default function App() {
           onToggle={() => setCollapsed((v) => !v)}
         />
         <main className="main">
-          {screen === "record" && (
-            <RecordScreen
-              kinds={data.kinds}
-              accounts={data.accounts}
-              categories={data.categories}
-              settings={data.settings}
-              amountFocusRef={amountRef}
-              onSaved={reload}
-            />
+          {data && (
+            <div hidden={screen !== "record"}>
+              <RecordScreen
+                kinds={data.kinds}
+                accounts={data.accounts}
+                categories={data.categories}
+                settings={data.settings}
+                amountFocusRef={amountRef}
+                onSaved={reload}
+              />
+            </div>
           )}
           {screen === "ledger" && (
             <LedgerScreen

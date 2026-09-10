@@ -199,7 +199,6 @@ export default function ReportsScreen({
           <p className="muted">
             {t("report.secondary", {
               repayment: formatMinor(report.secondaryRepayment, locale),
-              prepayment: formatMinor(report.secondaryPrepayment, locale),
               volume: formatMinor(report.secondaryTransferVolume, locale),
               fees: formatMinor(report.secondaryTransferFees, locale),
             })}
@@ -280,7 +279,7 @@ export default function ReportsScreen({
                         entryId: row.entryId,
                         fromDate: report.rangeFrom,
                         toDate: report.rangeTo,
-                        kindIds: side === "income" ? ["income"] : ["expense", "transfer"],
+                        kindIds: jumpKindIds(side, kinds),
                       })
                     }
                   >
@@ -301,7 +300,7 @@ export default function ReportsScreen({
                   entryId: report.ranking[0]?.entryId ?? "",
                   fromDate: report.rangeFrom,
                   toDate: report.rangeTo,
-                  kindIds: side === "income" ? ["income"] : ["expense", "transfer"],
+                  kindIds: jumpKindIds(side, kinds),
                 })
               }
             >
@@ -312,4 +311,13 @@ export default function ReportsScreen({
       )}
     </div>
   );
+}
+
+function jumpKindIds(side: string, kinds: KindDto[]): string[] {
+  if (side === "income") {
+    return kinds.filter((k) => k.reportBucket === "income").map((k) => k.id);
+  }
+  return kinds
+    .filter((k) => k.reportBucket === "expense" || k.feeReportBucket === "expense")
+    .map((k) => k.id);
 }

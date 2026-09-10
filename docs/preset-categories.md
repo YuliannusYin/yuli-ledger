@@ -66,7 +66,7 @@ Related: [domain-model.md](domain-model.md) (tree rules and delete rules), [entr
 | `preset.category.housing.maintenance` | Maintenance | 维修 |
 | `preset.category.housing.other` | Other | 其他 |
 
-Advance rent: kind **`prepayment`**, category Housing → Rent (not an extra 预付款 main).
+Advance rent: kind **`prepayment`** on the account whose **debt** should rise (often a dedicated account), category Housing → Rent. If cash also left a wallet, record that as a separate `expense` or `transfer`.
 
 ### Entertainment · 娱乐
 
@@ -175,7 +175,7 @@ Classifies **`transfer` entries** (the kind). Not a second entry kind. Distinct 
 
 ### Finance · 财务
 
-Bank charges and a home for thin `repayment` when the debt is not Housing (or similar). Transfer **fees** live under Transfer, not here.
+Bank charges and a home for `repayment` category when the payment is not Housing (or similar). Transfer **fees** live under Transfer, not here.
 
 | Key | en | zh-Hans |
 |-----|----|---------|

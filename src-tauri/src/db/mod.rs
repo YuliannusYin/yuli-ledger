@@ -1,3 +1,4 @@
+mod migrate;
 mod schema;
 mod seed;
 
@@ -33,6 +34,7 @@ pub fn open_at(path: &Path) -> Result<Connection> {
     conn.pragma_update(None, "journal_mode", "WAL")?;
     conn.execute_batch(schema::SCHEMA)?;
     seed::seed_if_empty(&conn)?;
+    migrate::apply(&conn)?;
     Ok(conn)
 }
 
@@ -47,7 +49,7 @@ fn account_kind_ok(kind: &str) -> bool {
 pub fn list_accounts(conn: &Connection) -> Result<Vec<AccountDto>> {
     let entries = list_all_entry_rows(conn)?;
     let mut stmt = conn.prepare(
-        "SELECT id, name, account_kind, opening_balance_minor, opening_at, note, sort_order, preset_key
+        "SELECT id, name, account_kind, opening_balance_minor, opening_debt_minor, opening_at, note, sort_order, preset_key
          FROM account ORDER BY sort_order ASC, id ASC",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -56,50 +58,63 @@ pub fn list_accounts(conn: &Connection) -> Result<Vec<AccountDto>> {
             r.get::<_, Option<String>>(1)?,
             r.get::<_, String>(2)?,
             r.get::<_, i64>(3)?,
-            r.get::<_, String>(4)?,
-            r.get::<_, Option<String>>(5)?,
-            r.get::<_, i32>(6)?,
-            r.get::<_, Option<String>>(7)?,
+            r.get::<_, i64>(4)?,
+            r.get::<_, String>(5)?,
+            r.get::<_, Option<String>>(6)?,
+            r.get::<_, i32>(7)?,
+            r.get::<_, Option<String>>(8)?,
         ))
     })?;
     let mut out = Vec::new();
     for row in rows {
-        let (id, name, account_kind, opening, opening_at, note, sort_order, preset_key) = row?;
+        let (id, name, account_kind, opening, opening_debt, opening_at, note, sort_order, preset_key) = row?;
         let balance_minor = balance::balance_for_account(opening, &opening_at, &id, &entries);
+        let debt_minor = balance::debt_for_account(opening_debt, &opening_at, &id, &entries);
         out.push(AccountDto {
             id,
             name,
             account_kind,
             opening_balance_minor: opening,
+            opening_debt_minor: opening_debt,
             opening_at,
             note,
             sort_order,
             preset_key,
             balance_minor,
+            debt_minor,
         });
     }
     Ok(out)
 }
 
-pub fn create_account(conn: &Connection, write: AccountWrite) -> Result<AccountDto> {
+fn account_write_ok(write: &AccountWrite) -> Result<()> {
     if write.name.trim().is_empty() {
         return Err(AppError::new("error.accountNameRequired"));
     }
     if !account_kind_ok(&write.account_kind) {
         return Err(AppError::new("error.accountKindInvalid"));
     }
+    if write.opening_debt_minor < 0 {
+        return Err(AppError::new("error.amountInvalid"));
+    }
     let _ = time_util::parse_utc_minute(&write.opening_at)?;
+    Ok(())
+}
+
+pub fn create_account(conn: &Connection, write: AccountWrite) -> Result<AccountDto> {
+    account_write_ok(&write)?;
     let max: i32 = conn
         .query_row("SELECT COALESCE(MAX(sort_order), -1) FROM account", [], |r| r.get(0))?;
     let id = new_id();
     conn.execute(
-        "INSERT INTO account (id, name, account_kind, opening_balance_minor, opening_at, note, sort_order, preset_key)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL)",
+        "INSERT INTO account (id, name, account_kind, opening_balance_minor, opening_debt_minor, opening_at, note, sort_order, preset_key)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NULL)",
         params![
             id,
             write.name.trim(),
             write.account_kind,
             write.opening_balance_minor,
+            write.opening_debt_minor,
             time_util::format_utc_minute(time_util::parse_utc_minute(&write.opening_at)?),
             write.note,
             max + 1
@@ -112,20 +127,16 @@ pub fn create_account(conn: &Connection, write: AccountWrite) -> Result<AccountD
 }
 
 pub fn update_account(conn: &Connection, id: &str, write: AccountWrite) -> Result<AccountDto> {
-    if write.name.trim().is_empty() {
-        return Err(AppError::new("error.accountNameRequired"));
-    }
-    if !account_kind_ok(&write.account_kind) {
-        return Err(AppError::new("error.accountKindInvalid"));
-    }
+    account_write_ok(&write)?;
     let opening_at = time_util::format_utc_minute(time_util::parse_utc_minute(&write.opening_at)?);
     let n = conn.execute(
-        "UPDATE account SET name = ?1, account_kind = ?2, opening_balance_minor = ?3, opening_at = ?4, note = ?5
-         WHERE id = ?6",
+        "UPDATE account SET name = ?1, account_kind = ?2, opening_balance_minor = ?3, opening_debt_minor = ?4, opening_at = ?5, note = ?6
+         WHERE id = ?7",
         params![
             write.name.trim(),
             write.account_kind,
             write.opening_balance_minor,
+            write.opening_debt_minor,
             opening_at,
             write.note,
             id
@@ -724,7 +735,9 @@ fn category_match_ids(conn: &Connection, id: &str) -> Result<Vec<String>> {
 pub fn get_settings(conn: &Connection) -> Result<SettingsDto> {
     conn.query_row(
         "SELECT currency_code, default_account_id, schema_version, ui_language, color_scheme,
-                default_fee_category_id, report_mode, report_side, report_custom_from, report_custom_to
+                default_fee_category_id, report_mode, report_side, report_custom_from, report_custom_to,
+                last_kind_id, last_account_id, last_counter_account_id, last_category_id,
+                last_fee_category_id, last_occurred_at
          FROM ledger_settings WHERE id = 1",
         [],
         |r| {
@@ -739,6 +752,12 @@ pub fn get_settings(conn: &Connection) -> Result<SettingsDto> {
                 report_side: r.get(7)?,
                 report_custom_from: r.get(8)?,
                 report_custom_to: r.get(9)?,
+                last_kind_id: r.get(10)?,
+                last_account_id: r.get(11)?,
+                last_counter_account_id: r.get(12)?,
+                last_category_id: r.get(13)?,
+                last_fee_category_id: r.get(14)?,
+                last_occurred_at: r.get(15)?,
             })
         },
     )
@@ -767,7 +786,9 @@ pub fn update_settings(conn: &Connection, patch: SettingsDto) -> Result<Settings
         "UPDATE ledger_settings SET
             default_account_id = ?1, ui_language = ?2, color_scheme = ?3,
             default_fee_category_id = ?4, report_mode = ?5, report_side = ?6,
-            report_custom_from = ?7, report_custom_to = ?8
+            report_custom_from = ?7, report_custom_to = ?8,
+            last_kind_id = ?9, last_account_id = ?10, last_counter_account_id = ?11,
+            last_category_id = ?12, last_fee_category_id = ?13, last_occurred_at = ?14
          WHERE id = 1",
         params![
             patch.default_account_id,
@@ -777,10 +798,27 @@ pub fn update_settings(conn: &Connection, patch: SettingsDto) -> Result<Settings
             patch.report_mode,
             patch.report_side,
             patch.report_custom_from,
-            patch.report_custom_to
+            patch.report_custom_to,
+            empty_to_none(patch.last_kind_id),
+            empty_to_none(patch.last_account_id),
+            empty_to_none(patch.last_counter_account_id),
+            empty_to_none(patch.last_category_id),
+            empty_to_none(patch.last_fee_category_id),
+            empty_to_none(patch.last_occurred_at),
         ],
     )?;
     get_settings(conn)
+}
+
+fn empty_to_none(value: Option<String>) -> Option<String> {
+    value.and_then(|s| {
+        let t = s.trim().to_string();
+        if t.is_empty() {
+            None
+        } else {
+            Some(t)
+        }
+    })
 }
 
 pub fn system_language() -> Option<String> {
@@ -839,7 +877,7 @@ mod tests {
         assert!(cats.iter().any(|c| c.preset_key.as_deref() == Some("preset.category.transfer.fee")));
         let settings = get_settings(&conn).unwrap();
         assert_eq!(settings.currency_code, "CNY");
-        assert_eq!(settings.schema_version, 1);
+        assert_eq!(settings.schema_version, 2);
     }
 
     #[test]
@@ -855,6 +893,7 @@ mod tests {
                 name: "Bank".into(),
                 account_kind: "bank".into(),
                 opening_balance_minor: 0,
+                opening_debt_minor: 0,
                 opening_at: time_util::OPENING_EPOCH.into(),
                 note: None,
             },
@@ -942,6 +981,7 @@ mod tests {
                 name: "Bank".into(),
                 account_kind: "bank".into(),
                 opening_balance_minor: 0,
+                opening_debt_minor: 0,
                 opening_at: time_util::OPENING_EPOCH.into(),
                 note: None,
             },
@@ -965,5 +1005,90 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(err.code, "error.transferDestExceedsSource");
+    }
+
+    #[test]
+    fn prepayment_raises_debt_not_balance_and_repayment_needs_counter() {
+        let mut db = temp_conn();
+        let cash = list_accounts(&db.conn).unwrap().pop().unwrap();
+        let housing = category_id_by_preset(&db.conn, "preset.category.housing.rent").unwrap();
+        let repay_cat = category_id_by_preset(&db.conn, "preset.category.finance.repayment").unwrap();
+        let debt_acct = create_account(
+            &db.conn,
+            AccountWrite {
+                name: "Loan".into(),
+                account_kind: "other".into(),
+                opening_balance_minor: 0,
+                opening_debt_minor: 5000,
+                opening_at: time_util::OPENING_EPOCH.into(),
+                note: None,
+            },
+        )
+        .unwrap();
+
+        create_entry(
+            &mut db.conn,
+            EntryWrite {
+                kind_id: "prepayment".into(),
+                amount_minor: 2000,
+                occurred_at: "2026-09-09T12:00:00Z".into(),
+                account_id: debt_acct.id.clone(),
+                counter_account_id: None,
+                counter_amount_minor: None,
+                category_id: housing,
+                fee_category_id: None,
+                note: None,
+                tag_names: vec![],
+                kind_payload: None,
+            },
+        )
+        .unwrap();
+
+        let err = create_entry(
+            &mut db.conn,
+            EntryWrite {
+                kind_id: "repayment".into(),
+                amount_minor: 800,
+                occurred_at: "2026-09-09T13:00:00Z".into(),
+                account_id: cash.id.clone(),
+                counter_account_id: None,
+                counter_amount_minor: None,
+                category_id: repay_cat.clone(),
+                fee_category_id: None,
+                note: None,
+                tag_names: vec![],
+                kind_payload: None,
+            },
+        )
+        .unwrap_err();
+        assert_eq!(err.code, "error.counterAccountRequired");
+
+        create_entry(
+            &mut db.conn,
+            EntryWrite {
+                kind_id: "repayment".into(),
+                amount_minor: 800,
+                occurred_at: "2026-09-09T13:00:00Z".into(),
+                account_id: cash.id.clone(),
+                counter_account_id: Some(debt_acct.id.clone()),
+                counter_amount_minor: None,
+                category_id: repay_cat,
+                fee_category_id: None,
+                note: None,
+                tag_names: vec![],
+                kind_payload: None,
+            },
+        )
+        .unwrap();
+
+        let accounts = list_accounts(&db.conn).unwrap();
+        let cash_row = accounts.iter().find(|a| a.id == cash.id).unwrap();
+        let debt_row = accounts.iter().find(|a| a.id == debt_acct.id).unwrap();
+        assert_eq!(cash_row.balance_minor, -800);
+        assert_eq!(cash_row.debt_minor, 0);
+        assert_eq!(debt_row.balance_minor, 0);
+        assert_eq!(debt_row.debt_minor, 5000 + 2000 - 800);
+        let (inc, exp) = registry::pnl_amounts("prepayment", 2000, None);
+        assert_eq!((inc, exp), (0, 2000));
     }
 }

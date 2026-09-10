@@ -28,10 +28,15 @@ Each kind publishes a descriptor. Conceptual fields:
 | `reportBucket` | `income` \| `expense` \| `none` — how **`amountMinor`** counts in period P&L |
 | `feeReportBucket` | `expense` \| `none` — how a **transfer shortfall** counts (v1: `expense` on `transfer`, `none` on other kinds) |
 | `categoryRequired` | Whether `categoryId` must be a subcategory |
-| `counterpartyRequired` | Whether `counterAccountId` and `counterAmountMinor` must be set |
+| `counterAccountRequired` | Whether `counterAccountId` must be set |
+| `counterAmountRequired` | Whether `counterAmountMinor` (and fee rules) must be set; implies a transfer-like destination amount |
+| `debtEffectPrimary` | How **debt** on `accountId` changes: `increase` \| `decrease` \| `none` |
+| `debtEffectCounter` | How **debt** on `counterAccountId` changes: `increase` \| `decrease` \| `none` |
 | `implemented` | `true` for shipped kinds |
 
-Balance and reports **must** use these descriptor fields. That is how `repayment` can leave an account without counting as spending, and how `transfer` can move two accounts, without editing every screen’s kind list.
+Display order of implemented kinds: `expense`, `income`, `prepayment`, `repayment`, `transfer`.
+
+Balance, debt, and reports **must** use these descriptor fields. That is how `prepayment` can count as spending without moving cash, how `repayment` can leave one account and reduce debt on another, and how `transfer` can move two accounts, without editing every screen’s kind list.
 
 ## Kind payload
 
@@ -58,7 +63,19 @@ Balance and reports **must** use these descriptor fields. That is how `repayment
 | `transfer` | -= `amountMinor` | += `counterAmountMinor` |
 | `none` | no change | no change |
 
-v1 has no kind with `balanceEffect: none`.
+`prepayment` uses `balanceEffect: none`. Account **balance** and account **debt** are derived independently.
+
+## How amounts hit debt
+
+Debt is a second derived number on each account (see [domain-model.md](domain-model.md)). It does not feed P&L.
+
+| Descriptor field | When it matches account A |
+|------------------|---------------------------|
+| `debtEffectPrimary = increase` | A is `accountId` → debt += `amountMinor` |
+| `debtEffectPrimary = decrease` | A is `accountId` → debt -= `amountMinor` |
+| `debtEffectCounter = decrease` | A is `counterAccountId` → debt -= `amountMinor` |
+
+v1: `prepayment` increases debt on `accountId`; `repayment` decreases debt on `counterAccountId` (the account being repaid). A repayment with no counterparty (legacy rows) does not change anyone’s debt.
 
 ## How amounts hit reports (P&L)
 
@@ -68,20 +85,21 @@ v1 has no kind with `balanceEffect: none`.
 |------|-----------|
 | `income` | income += `amountMinor` |
 | `expense` | expense += `amountMinor` |
+| `prepayment` | expense += `amountMinor` |
 | `repayment` | neither |
-| `prepayment` | neither |
 | `transfer` | expense += **fee** only, where `fee = amountMinor - counterAmountMinor` |
 
 Fee is `>= 0` by validation. When fee is 0, the transfer is P&L-neutral (money moved between your own accounts). When fee is 1 fen, net worth fell by 1 fen; that fen is an expense under `feeCategoryId`.
 
-**Secondary totals** (required in v1 so these rows are not invisible):
+**Secondary totals** (not in the side total):
 
 - Sum of `repayment` `amountMinor`
-- Sum of `prepayment` `amountMinor`
 - Transfer volume: sum of `counterAmountMinor` (what arrived)
 - Transfer fees: sum of fees (must equal the expense attributed to transfer kinds)
 
-**Net** remains `income - expense`. It does **not** subtract repayment or prepayment. Those reduced cash (account balances) but are not consumption in this product.
+Prepayment is **not** on the secondary line; it is already in the expense total.
+
+**Net** is `income - expense` using the table above (so prepayment reduces net). Repayment does not.
 
 ## v1 kinds
 
@@ -94,8 +112,11 @@ Fee is `>= 0` by validation. When fee is 0, the transfer is P&L-neutral (money m
 | `balanceEffect` | `increase` |
 | `reportBucket` | `income` |
 | `feeReportBucket` | `none` |
+| `debtEffectPrimary` | `none` |
+| `debtEffectCounter` | `none` |
 | `categoryRequired` | yes |
-| `counterpartyRequired` | no |
+| `counterAccountRequired` | no |
+| `counterAmountRequired` | no |
 | `payload` | `{ "v": 1 }` |
 
 Money received into `accountId`. Amount is the gross amount recorded.
@@ -109,15 +130,18 @@ Money received into `accountId`. Amount is the gross amount recorded.
 | `balanceEffect` | `decrease` |
 | `reportBucket` | `expense` |
 | `feeReportBucket` | `none` |
+| `debtEffectPrimary` | `none` |
+| `debtEffectCounter` | `none` |
 | `categoryRequired` | yes |
-| `counterpartyRequired` | no |
+| `counterAccountRequired` | no |
+| `counterAmountRequired` | no |
 | `payload` | `{ "v": 1 }` |
 
 Money leaving `accountId` as consumption. Amount is what left the account.
 
 ### `repayment`
 
-Thin kind: cash (or another asset account) goes down; you describe **what** you repaid with **category + note**. No liability table, no remaining balance, no interest.
+Cash leaves the **paying** account; **debt** falls on the **account being repaid**. Category + note still describe the payment. No separate liability table, no interest, no amortization.
 
 | Descriptor | Value |
 |------------|--------|
@@ -126,30 +150,48 @@ Thin kind: cash (or another asset account) goes down; you describe **what** you 
 | `balanceEffect` | `decrease` |
 | `reportBucket` | `none` |
 | `feeReportBucket` | `none` |
+| `debtEffectPrimary` | `none` |
+| `debtEffectCounter` | `decrease` |
 | `categoryRequired` | yes |
-| `counterpartyRequired` | no |
+| `counterAccountRequired` | yes |
+| `counterAmountRequired` | no |
 | `payload` | `{ "v": 1 }` |
 
-Use this when the debt is **not** tracked as an account. If the credit card *is* an account in the ledger, paying it is a **`transfer`** into that account, not a `repayment`.
+Columns:
+
+| Field | Role |
+|-------|------|
+| `accountId` | Paying account. Balance -= `amountMinor`. Debt unchanged. |
+| `counterAccountId` | Account being repaid. Must differ from `accountId`. Debt -= `amountMinor`. Balance unchanged. |
+| `counterAmountMinor` / `feeCategoryId` | Must be null. |
+
+If the credit card *is* an account and you want its **cash-like balance** to move, paying it is still a **`transfer`**. Use `repayment` when you want the repaid account’s **debt** to fall.
+
+Legacy rows may have a null counterparty; they reduce the payer’s balance only and do not change debt. Editing them requires a repaid account.
 
 Do not fake repayment as `expense` plus a tag.
 
 ### `prepayment`
 
-Thin kind: money leaves now for something consumed later (advance rent, a deposit, a membership). Category + note name the item. No prepaid-asset table, **no later settlement** that turns this into `expense`.
+Single-account kind: **debt** on `accountId` rises; **balance does not change**. The amount counts as **expense** in reports. Category + note name the item. No prepaid-asset table, **no later settlement** that turns this into a second `expense`.
 
 | Descriptor | Value |
 |------------|--------|
 | `id` | `prepayment` |
 | `labelKey` | `kind.prepayment` |
-| `balanceEffect` | `decrease` |
-| `reportBucket` | `none` |
+| `balanceEffect` | `none` |
+| `reportBucket` | `expense` |
 | `feeReportBucket` | `none` |
+| `debtEffectPrimary` | `increase` |
+| `debtEffectCounter` | `none` |
 | `categoryRequired` | yes |
-| `counterpartyRequired` | no |
+| `counterAccountRequired` | no |
+| `counterAmountRequired` | no |
 | `payload` | `{ "v": 1 }` |
 
-**Cash already left.** Do not post a second `expense` for the same money when the month “arrives”; that would subtract cash twice. v1 therefore **understates consumption** in later months for prepaid goods. That is the accepted tradeoff until a settlement kind exists.
+If cash already left an account, record that as a separate `expense` or `transfer`. Doing both a prepayment (report expense) and an expense will **double-count** consumption in reports; that is accepted when the user chooses both.
+
+Existing prepayment rows no longer reduce balances after this rule (balances are derived).
 
 ### `transfer`
 
@@ -162,8 +204,11 @@ Move value between **two of your accounts**. WeChat balance withdrawn to a bank 
 | `balanceEffect` | `transfer` |
 | `reportBucket` | `none` |
 | `feeReportBucket` | `expense` |
+| `debtEffectPrimary` | `none` |
+| `debtEffectCounter` | `none` |
 | `categoryRequired` | yes (classify the move; any subcategory, not hardcoded to the Transfer main) |
-| `counterpartyRequired` | yes |
+| `counterAccountRequired` | yes |
+| `counterAmountRequired` | yes |
 | `payload` | `{ "v": 1 }` |
 
 Columns (not payload):
@@ -194,14 +239,14 @@ This is **not** a full double-entry chart of accounts. It is one entry with a so
 A new kind is:
 
 1. A new `id` in the registry
-2. Descriptor flags (`balanceEffect`, report buckets, category/counterparty required)
+2. Descriptor flags (`balanceEffect`, report buckets, debt effects, category / counter-account / counter-amount required)
 3. Payload JSON schema if columns are not enough
 4. A kind module: form, validation, optional links to new tables
 5. i18n keys for labels
 
 **Not** required: new columns for money, time, tags, or note. A new *entity* (a loan, a prepaid asset for settlement) is a new table referenced from payload, plus possibly reusing the counterparty slot.
 
-Likely later: liability remaining balances; prepayment **settlement** into `expense` without moving cash again.
+Likely later: named-debt *entities* beyond the per-account derived debt number; prepayment **settlement** into `expense` without moving cash again.
 
 ## Unknown kinds
 
@@ -211,7 +256,7 @@ A newer database (or a hand-edited kind id) opened by an older app:
 
 - List and detail show core columns
 - Kind label falls back to the raw `kindId`
-- Balance/report: treat missing registry entries as `balanceEffect: none`, `reportBucket: none`, `feeReportBucket: none`
+- Balance/report/debt: treat missing registry entries as `balanceEffect: none`, `reportBucket: none`, `feeReportBucket: none`, debt effects `none`
 - Editing kind-specific fields is disabled until the kind module exists
 
 ## Anti-patterns

@@ -159,8 +159,8 @@ pub fn seed_if_empty(conn: &Connection) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     let account_id = Uuid::new_v4().to_string();
     tx.execute(
-        "INSERT INTO account (id, name, account_kind, opening_balance_minor, opening_at, note, sort_order, preset_key)
-         VALUES (?1, NULL, 'other', 0, ?2, NULL, 0, 'preset.account.default')",
+        "INSERT INTO account (id, name, account_kind, opening_balance_minor, opening_debt_minor, opening_at, note, sort_order, preset_key)
+         VALUES (?1, NULL, 'other', 0, 0, ?2, NULL, 0, 'preset.account.default')",
         params![account_id, OPENING_EPOCH],
     )?;
 
@@ -190,7 +190,7 @@ pub fn seed_if_empty(conn: &Connection) -> Result<()> {
             id, currency_code, default_account_id, schema_version,
             ui_language, color_scheme, default_fee_category_id,
             report_mode, report_side, report_custom_from, report_custom_to
-         ) VALUES (1, 'CNY', ?1, 1, NULL, NULL, ?2, NULL, NULL, NULL, NULL)",
+         ) VALUES (1, 'CNY', ?1, 2, NULL, NULL, ?2, NULL, NULL, NULL, NULL)",
         params![account_id, fee_id],
     )?;
     tx.commit()?;

@@ -3,7 +3,7 @@ pub mod registry;
 use serde_json::json;
 
 use crate::error::{AppError, Result};
-use crate::kinds::registry::{BalanceEffect, KindDescriptor};
+use crate::kinds::registry::KindDescriptor;
 use crate::models::EntryWrite;
 
 pub fn default_payload() -> String {
@@ -12,8 +12,10 @@ pub fn default_payload() -> String {
 
 pub fn normalize_write(input: &mut EntryWrite) {
     if let Some(desc) = registry::get(&input.kind_id) {
-        if !desc.counterparty_required {
+        if !desc.counter_account_required {
             input.counter_account_id = None;
+        }
+        if !desc.counter_amount_required {
             input.counter_amount_minor = None;
             input.fee_category_id = None;
         }
@@ -30,9 +32,12 @@ pub fn validate_kind_fields(desc: &KindDescriptor, input: &EntryWrite) -> Result
     if desc.category_required && input.category_id.trim().is_empty() {
         return Err(AppError::new("error.categoryRequired"));
     }
-    match desc.balance_effect {
-        BalanceEffect::Transfer => validate_transfer(input),
-        _ => validate_single_account(input),
+    if desc.counter_amount_required {
+        validate_transfer(input)
+    } else if desc.counter_account_required {
+        validate_counter_account_only(input)
+    } else {
+        validate_single_account(input)
     }
 }
 
@@ -41,6 +46,21 @@ fn validate_single_account(input: &EntryWrite) -> Result<()> {
         || input.counter_amount_minor.is_some()
         || input.fee_category_id.is_some()
     {
+        return Err(AppError::new("error.counterpartyMustBeEmpty"));
+    }
+    Ok(())
+}
+
+fn validate_counter_account_only(input: &EntryWrite) -> Result<()> {
+    let dest = input
+        .counter_account_id
+        .as_ref()
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| AppError::new("error.counterAccountRequired"))?;
+    if dest == &input.account_id {
+        return Err(AppError::new("error.accountsMustDiffer"));
+    }
+    if input.counter_amount_minor.is_some() || input.fee_category_id.is_some() {
         return Err(AppError::new("error.counterpartyMustBeEmpty"));
     }
     Ok(())

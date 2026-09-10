@@ -11,7 +11,10 @@ pub struct KindDto {
     pub report_bucket: String,
     pub fee_report_bucket: String,
     pub category_required: bool,
-    pub counterparty_required: bool,
+    pub counter_account_required: bool,
+    pub counter_amount_required: bool,
+    pub primary_account_label_key: Option<String>,
+    pub counter_account_label_key: Option<String>,
     pub implemented: bool,
 }
 
@@ -22,11 +25,13 @@ pub struct AccountDto {
     pub name: Option<String>,
     pub account_kind: String,
     pub opening_balance_minor: i64,
+    pub opening_debt_minor: i64,
     pub opening_at: String,
     pub note: Option<String>,
     pub sort_order: i32,
     pub preset_key: Option<String>,
     pub balance_minor: i64,
+    pub debt_minor: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,6 +65,12 @@ pub struct SettingsDto {
     pub report_side: Option<String>,
     pub report_custom_from: Option<String>,
     pub report_custom_to: Option<String>,
+    pub last_kind_id: Option<String>,
+    pub last_account_id: Option<String>,
+    pub last_counter_account_id: Option<String>,
+    pub last_category_id: Option<String>,
+    pub last_fee_category_id: Option<String>,
+    pub last_occurred_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,6 +131,7 @@ pub struct AccountWrite {
     pub name: String,
     pub account_kind: String,
     pub opening_balance_minor: i64,
+    pub opening_debt_minor: i64,
     pub opening_at: String,
     pub note: Option<String>,
 }
@@ -235,7 +247,10 @@ impl KindDto {
             report_bucket: bucket_name(d.report_bucket),
             fee_report_bucket: fee_bucket_name(d.fee_report_bucket),
             category_required: d.category_required,
-            counterparty_required: d.counterparty_required,
+            counter_account_required: d.counter_account_required,
+            counter_amount_required: d.counter_amount_required,
+            primary_account_label_key: d.primary_account_label_key.map(|s| s.to_string()),
+            counter_account_label_key: d.counter_account_label_key.map(|s| s.to_string()),
             implemented: d.implemented,
         }
     }

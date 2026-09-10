@@ -67,8 +67,8 @@ Tokens (implement as CSS variables). Names are English; values are the source of
 | `--text` | `#18181b` | Primary text |
 | `--muted` | `#71717a` | Secondary |
 | `--accent-in` | `#0e7490` | Income / positive (cyan-700) |
-| `--accent-out` | `#c2410c` | Expense / fee (copper) |
-| `--accent-neutral` | `#52525b` | Transfer / repayment / prepayment amounts |
+| `--accent-out` | `#c2410c` | Expense / fee / prepayment amounts |
+| `--accent-neutral` | `#52525b` | Transfer / repayment amounts |
 | `--danger` | `#b91c1c` | Destructive confirm only |
 | `--focus` | `#3f3f46` | Focus ring (zinc, 2px) |
 
@@ -119,7 +119,7 @@ Job: under a minute, preferably **one glance + keyboard**.
 - **Amount** is the first and largest field (mono, ~28–32px). Transfer: source amount first; destination amount on the next row, defaulting to the same value; if they differ, show fee on a third row in `--accent-out`.
 - **Kind:** horizontal set of equal hairline buttons generated from the kind registry (must grow past two). Selected = zinc fill + label, not a colorful rainbow per kind.
 - Account, category (main then sub), tags, note: compact rows. Category: two selects, not a deep tree widget.
-- Primary action: **Save** (`Ctrl+Enter`). After a successful save, **stay on Record**, clear amount/note/tags, keep kind/account/time (time may snap to now). That is the daily loop.
+- Primary action: **Save** (`Ctrl+Enter`). After a successful save, **stay on Record**, clear amount/note/tags, keep kind/account/category/**time**. Persist that kept configuration in ledger settings so a restart restores it.
 - Validation: inline under the field, zinc + `--danger` text, no modal for ordinary errors.
 - Delete is not on this screen (edit/delete from ledger inspector).
 
@@ -142,12 +142,12 @@ Information architecture: [features.md](features.md).
 - **Composition:** 2D pie + table (swatch, name, amount, percent). Pie hole optional (donut is allowed if the center shows the side total in mono); no 3D, no slice explode.
 - **Comparison:** eight zinc bars, current period outlined; fill `--accent-out` or `--accent-in` by side.
 - **Ranking:** ledger-like table.
-- Secondary repayment / prepayment / transfer volume: one muted line.
+- Secondary repayment / transfer volume / fees: one muted line.
 - Click a ranking row: Ledger + inspector.
 
 ## Accounts and categories
 
-- **Split list:** left list of accounts or mains; right editor (name, kind, opening, **note** for accounts; children for a main).
+- **Split list:** left list of accounts or mains; right editor (name, kind, opening balance, opening debt, **note** for accounts; children for a main).
 - Delete: enabled only when rules in [features.md](features.md) allow; otherwise disabled with a one-line reason (e.g. “Used by 12 entries”).
 - Reorder: simple up/down or drag; visual = hairline grab, not colorful chips.
 

@@ -34,6 +34,7 @@ export default function AccountsScreen({
   const [name, setName] = useState("");
   const [kind, setKind] = useState("other");
   const [opening, setOpening] = useState("0.00");
+  const [openingDebt, setOpeningDebt] = useState("0.00");
   const [openingAt, setOpeningAt] = useState(toUtcIso({ ...localParts(), hour: 0, minute: 0 }));
   const [note, setNote] = useState("");
   const [usage, setUsage] = useState(0);
@@ -45,6 +46,7 @@ export default function AccountsScreen({
     setName(accountName(acc, t));
     setKind(acc.accountKind);
     setOpening((acc.openingBalanceMinor / 100).toFixed(2));
+    setOpeningDebt((acc.openingDebtMinor / 100).toFixed(2));
     setOpeningAt(acc.openingAt);
     setNote(acc.note ?? "");
     void accountUsage(acc.id).then(setUsage);
@@ -54,7 +56,8 @@ export default function AccountsScreen({
   async function save() {
     if (!acc) return;
     const minor = parseCny(opening);
-    if (minor == null) {
+    const debtMinor = parseCny(openingDebt);
+    if (minor == null || debtMinor == null) {
       setError("error.amountInvalid");
       return;
     }
@@ -64,6 +67,7 @@ export default function AccountsScreen({
         name,
         accountKind: kind,
         openingBalanceMinor: minor,
+        openingDebtMinor: debtMinor,
         openingAt: toUtcIso(parts),
         note: note.trim() || null,
       });
@@ -78,6 +82,7 @@ export default function AccountsScreen({
       name: t("accounts.newName"),
       accountKind: "other",
       openingBalanceMinor: 0,
+      openingDebtMinor: 0,
       openingAt: toUtcIso({ ...localParts(), hour: 0, minute: 0 }),
       note: null,
     });
@@ -105,7 +110,11 @@ export default function AccountsScreen({
           render={(a) => (
             <>
               <span>{accountName(a, t)}</span>
-              <span className="mono muted">{formatMinor(a.balanceMinor, locale, true)}</span>
+              <span className="mono muted">
+                {formatMinor(a.balanceMinor, locale, true)}
+                {" · "}
+                {t("accounts.debt")} {formatMinor(a.debtMinor, locale, true)}
+              </span>
             </>
           )}
         />
@@ -130,6 +139,10 @@ export default function AccountsScreen({
               <input className="mono" value={opening} onChange={(e) => setOpening(e.target.value)} />
             </div>
             <div className="field">
+              <label>{t("field.openingDebt")}</label>
+              <input className="mono" value={openingDebt} onChange={(e) => setOpeningDebt(e.target.value)} />
+            </div>
+            <div className="field">
               <label>{t("field.openingAt")}</label>
               <input
                 type="datetime-local"
@@ -143,6 +156,8 @@ export default function AccountsScreen({
             </div>
             <p className="muted">
               {t("accounts.balance")}: <span className="mono">{formatMinor(acc.balanceMinor, locale, true)}</span>
+              {" · "}
+              {t("accounts.debt")}: <span className="mono">{formatMinor(acc.debtMinor, locale, true)}</span>
               {settings.defaultAccountId === acc.id ? ` · ${t("accounts.default")}` : ""}
             </p>
             {error && <p className="err">{t(error)}</p>}

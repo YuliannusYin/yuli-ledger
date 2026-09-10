@@ -102,6 +102,11 @@ export default function LedgerScreen({
     const tagNames = selectedRow.tagIds
       .map((id) => tags.find((tg) => tg.id === id)?.name)
       .filter((n): n is string => Boolean(n));
+    const kind = kinds.find((k) => k.id === selectedRow.kindId);
+    let counterAccountId = selectedRow.counterAccountId;
+    if (!counterAccountId && kind?.counterAccountRequired) {
+      counterAccountId = accounts.find((a) => a.id !== selectedRow.accountId)?.id ?? "";
+    }
     setForm(
       formFromWrite(
         {
@@ -109,7 +114,7 @@ export default function LedgerScreen({
           amountMinor: selectedRow.amountMinor,
           occurredAt: selectedRow.occurredAt,
           accountId: selectedRow.accountId,
-          counterAccountId: selectedRow.counterAccountId,
+          counterAccountId,
           counterAmountMinor: selectedRow.counterAmountMinor,
           categoryId: selectedRow.categoryId,
           feeCategoryId: selectedRow.feeCategoryId,
@@ -120,7 +125,7 @@ export default function LedgerScreen({
       ),
     );
     setError(null);
-  }, [selectedRow, tags, categories]);
+  }, [selectedRow, tags, categories, accounts, kinds]);
 
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const accById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -319,8 +324,8 @@ export default function LedgerScreen({
                     >
                       <td className="mono">{formatLocalDateTime(row.occurredAt, locale)}</td>
                       <td>{kind ? t(kind.labelKey) : row.kindId}</td>
-                      <td className={`num ${kindClass(row.kindId)}`}>
-                        {formatAmount(row, locale)}
+                      <td className={`num ${kindClass(kind)}`}>
+                        {formatAmount(row, kind, locale)}
                         {fee > 0 && (
                           <div className="muted">
                             {formatMinor(row.counterAmountMinor ?? 0, locale)} / {formatMinor(fee, locale)}
@@ -410,16 +415,16 @@ function appliedActive(f: AppliedFilter): boolean {
   );
 }
 
-function kindClass(kindId: string): string {
-  if (kindId === "income") return "in";
-  if (kindId === "expense") return "out";
+function kindClass(kind: KindDto | undefined): string {
+  if (kind?.reportBucket === "income") return "in";
+  if (kind?.reportBucket === "expense") return "out";
   return "neutral";
 }
 
-function formatAmount(row: EntryDto, locale: string): string {
-  if (row.kindId === "income") return formatMinor(row.amountMinor, locale, true);
-  if (row.kindId === "expense") return `−${formatMinor(row.amountMinor, locale)}`;
-  if (row.kindId === "repayment" || row.kindId === "prepayment")
+function formatAmount(row: EntryDto, kind: KindDto | undefined, locale: string): string {
+  if (kind?.reportBucket === "income") return formatMinor(row.amountMinor, locale, true);
+  if (kind?.reportBucket === "expense" || kind?.balanceEffect === "decrease") {
     return `−${formatMinor(row.amountMinor, locale)}`;
+  }
   return formatMinor(row.amountMinor, locale);
 }

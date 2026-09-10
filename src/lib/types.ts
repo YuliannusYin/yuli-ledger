@@ -24,7 +24,10 @@ export type KindDto = {
   reportBucket: string;
   feeReportBucket: string;
   categoryRequired: boolean;
-  counterpartyRequired: boolean;
+  counterAccountRequired: boolean;
+  counterAmountRequired: boolean;
+  primaryAccountLabelKey: string | null;
+  counterAccountLabelKey: string | null;
   implemented: boolean;
 };
 
@@ -33,11 +36,13 @@ export type AccountDto = {
   name: string | null;
   accountKind: string;
   openingBalanceMinor: number;
+  openingDebtMinor: number;
   openingAt: string;
   note: string | null;
   sortOrder: number;
   presetKey: string | null;
   balanceMinor: number;
+  debtMinor: number;
 };
 
 export type CategoryDto = {
@@ -65,6 +70,12 @@ export type SettingsDto = {
   reportSide: string | null;
   reportCustomFrom: string | null;
   reportCustomTo: string | null;
+  lastKindId: string | null;
+  lastAccountId: string | null;
+  lastCounterAccountId: string | null;
+  lastCategoryId: string | null;
+  lastFeeCategoryId: string | null;
+  lastOccurredAt: string | null;
 };
 
 export type EntryDto = {
@@ -101,6 +112,7 @@ export type AccountWrite = {
   name: string;
   accountKind: string;
   openingBalanceMinor: number;
+  openingDebtMinor: number;
   openingAt: string;
   note: string | null;
 };

@@ -22,15 +22,19 @@ Kind-specific:
 
 | Kind | Extra required | Extra optional |
 |------|----------------|----------------|
-| `income`, `expense`, `repayment`, `prepayment` | Subcategory (after a main category) | — |
+| `income`, `expense`, `prepayment` | Subcategory (after a main category) | — |
+| `repayment` | Subcategory; **account being repaid** (`counterAccountId`, different from the paying account) | — |
 | `transfer` | Destination account; destination amount (defaults to source amount); **subcategory** (seed: WeChat withdrawal / Between accounts) | If destination is less than source: **fee category** (default `defaultFeeCategoryId`, seeded `preset.category.transfer.fee`) |
 
 The UI must not hardcode a two-button income/expense-only control that cannot grow. Short copy on the form:
 
-- Repayment / prepayment: does not count as spending; cash still leaves the account.
+- Prepayment: counts as spending; this account’s debt rises; its balance does not change. Record a separate expense or transfer if cash already left.
+- Repayment: does not count as spending; paying account balance falls; repaid account debt falls.
 - Transfer: pick a subcategory (seed: WeChat withdrawal / Between accounts). Fee, if any, is on this same row (default fee category is Transfer fee, user-changeable).
 
-Defaults: occurred at = now (local, to the minute); account = default account; transfer destination amount = source amount (fee 0).
+Defaults: occurred at = last saved Record time if present, else now (local, to the minute); account = last saved or ledger default; transfer destination amount = source amount (fee 0).
+
+After a successful Record save, persist last kind / accounts / categories / occurred-at in ledger settings. Stay on Record; clear **amount, tags, and note** only (including transfer destination amount). Kind, accounts, categories, and time stay.
 
 Save validates through the **kind module** plus shared entry rules ([domain-model.md](domain-model.md)).
 
@@ -52,7 +56,7 @@ First-class management, not a hidden settings dump. All lists come from the data
 
 **Accounts**
 
-- Create, rename, set `accountKind`, opening balance / date, **note**, sort order, set default
+- Create, rename, set `accountKind`, opening balance / opening debt / date, **note**, sort order, set default
 - Delete if unused (no entries on either side), not the last account, and not the current default (pick another default first)
 
 **Categories**
@@ -69,7 +73,7 @@ The ledger is the chronological book of entries, newest `occurredAt` first. Tie-
 
 Each row shows enough to scan: occurred at (local), kind label, amount, account(s), category (and fee category when a transfer has a fee), tags, note excerpt.
 
-Transfer row pattern: source account → destination account, source amount, destination amount if different, fee if any.
+Transfer row pattern: source account → destination account, source amount, destination amount if different, fee if any. Repayment with a repaid account: paying account → repaid account.
 
 Opening a row shows the full entry. Edit and delete are available from detail (and may be available inline later; not required).
 
@@ -120,12 +124,12 @@ A two-state control: **Expense** | **Income**. The page shows **one side at a ti
 
 | Side | Totals and charts use |
 |------|------------------------|
-| Expense | `expense` amounts + **transfer fees** |
+| Expense | `expense` and `prepayment` amounts + **transfer fees** |
 | Income | `income` amounts |
 
 Net (`income − expense`) is a single muted figure that stays visible on both sides so the page does not hide the other side entirely.
 
-**Secondary** (not in the side total): repayment, prepayment, transfer arrival volume. Always a compact zinc line under the figures, both sides.
+**Secondary** (not in the side total): repayment, transfer arrival volume, transfer fees. Always a compact zinc line under the figures, both sides. Prepayment is already in the expense total.
 
 ### Sections (required)
 
@@ -137,7 +141,7 @@ Order on the page:
 4. **Composition** — toggle **by main category** / **by subcategory**. A **pie** (2D, no 3D, no donut hole required) **and** a table of amount + percent (like a legend with numbers). Sort table by amount descending; percent of the **side total**; omit zeros. Slice color = category `colorHex` ([ui.md](ui.md)). Transfer fees use `feeCategoryId`. If the pie would have **more than 10** slices, draw the largest 9 plus an **Other** slice; the table still lists every row.  
 5. **By account** — same side, same period (table; not a second pie)  
 6. **Comparison bars** — Week / Month / Year only: **eight** vertical bars, oldest on the left, **current period included** as the last bar (current + seven previous). Height = that bucket’s **side** total. Current bar: hairline emphasis. Missing history is a bar of 0, not a skipped slot.  
-7. **Ranking** — entries in this period that belong to the side, highest amount first (cap **20**). Expense side: `expense` rows by `amountMinor`, plus `transfer` rows with fee > 0 ranked by **fee**. Income side: `income` rows. Columns: occurred at, kind, category, note excerpt, amount. Click opens the ledger inspector on that entry. “More” applies the same period + kind filter on **Ledger**
+7. **Ranking** — entries in this period that belong to the side, highest amount first (cap **20**). Expense side: `expense` and `prepayment` rows by `amountMinor`, plus `transfer` rows with fee > 0 ranked by **fee**. Income side: `income` rows. Columns: occurred at, kind, category, note excerpt, amount. Click opens the ledger inspector on that entry. “More” applies the same period + kind filter on **Ledger**
 
 Empty period: muted “No entries in this range”, keep chrome.
 
@@ -156,7 +160,7 @@ Empty period: muted “No entries in this range”, keep chrome.
 - Composition percents add to 100% of the side total (rounding: last row absorbs 1 fen)  
 - Ranking amounts are the same numbers that feed the side total for those rows  
 
-Ledger list vs reports: an `expense` filter on the ledger does not include transfer fees; the report expense total does. The report definition wins for P&L.
+Ledger list vs reports: an `expense` filter on the ledger does not include `prepayment` rows or transfer fees; the report expense total includes both. The report definition wins for P&L.
 
 ## Information architecture (logical screens)
 
@@ -178,4 +182,4 @@ Navigation is a **left rail** (Record, Ledger, Reports, Accounts, Categories, Se
 - Multi-select batch delete (optional later)
 - Notifications or calendar sync
 - Settling a prepayment into a later expense without moving cash
-- Tracking remaining loan / credit balances
+- Named debt *entities* (per-account derived debt is in)

@@ -1,6 +1,6 @@
 import { useMemo, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import type { AccountDto, CategoryDto, EntryWrite, KindDto } from "../lib/types";
+import type { AccountDto, CategoryDto, EntryWrite, KindDto, SettingsDto } from "../lib/types";
 import { parseCny } from "../lib/money";
 import { accountName, categoryName, mains, subsOf } from "../lib/names";
 import { fromUtcIso, localParts, toUtcIso } from "../lib/time";
@@ -24,29 +24,55 @@ export type FormState = {
   note: string;
 };
 
+function knownId(ids: string[], value: string | null | undefined, fallback: string): string {
+  if (value && ids.includes(value)) return value;
+  return fallback;
+}
+
+function draftTime(iso: string | null | undefined) {
+  if (!iso) return localParts();
+  const parts = fromUtcIso(iso);
+  if (!Number.isFinite(parts.year) || parts.year < 1970) return localParts();
+  return parts;
+}
+
 export function emptyForm(
   kinds: KindDto[],
   accounts: AccountDto[],
   categories: CategoryDto[],
-  defaultAccountId: string,
-  defaultFeeCategoryId: string | null,
+  settings: SettingsDto,
   kindId?: string,
 ): FormState {
-  const now = localParts();
-  const kind = kindId ?? kinds[0]?.id ?? "expense";
+  const accountIds = accounts.map((a) => a.id);
+  const kind = kindId ?? knownId(kinds.map((k) => k.id), settings.lastKindId, kinds[0]?.id ?? "expense");
+  const accountId = knownId(
+    accountIds,
+    settings.lastAccountId,
+    settings.defaultAccountId || accounts[0]?.id || "",
+  );
+  const counterFallback = accounts.find((a) => a.id !== accountId)?.id ?? accounts[0]?.id ?? "";
+  const lastCat = categories.find((c) => c.id === settings.lastCategoryId && c.parentId);
   const mainList = mains(categories);
-  const main = mainList[0];
+  const main = lastCat
+    ? categories.find((c) => c.id === lastCat.parentId) ?? mainList[0]
+    : mainList[0];
   const subs = main ? subsOf(categories, main.id) : [];
+  const categoryId = lastCat?.id ?? subs[0]?.id ?? "";
+  const feeId = knownId(
+    categories.filter((c) => c.parentId).map((c) => c.id),
+    settings.lastFeeCategoryId ?? settings.defaultFeeCategoryId,
+    settings.defaultFeeCategoryId ?? "",
+  );
   return {
     kindId: kind,
     amount: "",
     destAmount: "",
-    ...now,
-    accountId: defaultAccountId || accounts[0]?.id || "",
-    counterAccountId: accounts.find((a) => a.id !== defaultAccountId)?.id ?? accounts[0]?.id ?? "",
+    ...draftTime(settings.lastOccurredAt),
+    accountId,
+    counterAccountId: knownId(accountIds, settings.lastCounterAccountId, counterFallback),
     mainId: main?.id ?? "",
-    categoryId: subs[0]?.id ?? "",
-    feeCategoryId: defaultFeeCategoryId ?? "",
+    categoryId,
+    feeCategoryId: feeId,
     tags: [],
     note: "",
   };
@@ -77,37 +103,46 @@ export function toWrite(form: FormState, kind: KindDto | undefined): { write?: E
   const amountMinor = parseCny(form.amount);
   if (amountMinor == null || amountMinor <= 0) return { error: "error.amountInvalid" };
   const occurredAt = toUtcIso(form);
-  if (!kind?.counterpartyRequired) {
+  const base = {
+    kindId: form.kindId,
+    amountMinor,
+    occurredAt,
+    accountId: form.accountId,
+    categoryId: form.categoryId,
+    note: form.note.trim() || null,
+    tagNames: form.tags,
+  };
+  if (kind?.counterAmountRequired) {
+    const dest = parseCny(form.destAmount || form.amount);
+    if (dest == null || dest <= 0) return { error: "error.counterAmountInvalid" };
+    const fee = amountMinor - dest;
     return {
       write: {
-        kindId: form.kindId,
-        amountMinor,
-        occurredAt,
-        accountId: form.accountId,
-        counterAccountId: null,
-        counterAmountMinor: null,
-        categoryId: form.categoryId,
-        feeCategoryId: null,
-        note: form.note.trim() || null,
-        tagNames: form.tags,
+        ...base,
+        counterAccountId: form.counterAccountId,
+        counterAmountMinor: dest,
+        feeCategoryId: fee > 0 ? form.feeCategoryId || null : null,
       },
     };
   }
-  const dest = parseCny(form.destAmount || form.amount);
-  if (dest == null || dest <= 0) return { error: "error.counterAmountInvalid" };
-  const fee = amountMinor - dest;
+  if (kind?.counterAccountRequired) {
+    if (!form.counterAccountId) return { error: "error.counterAccountRequired" };
+    if (form.counterAccountId === form.accountId) return { error: "error.accountsMustDiffer" };
+    return {
+      write: {
+        ...base,
+        counterAccountId: form.counterAccountId,
+        counterAmountMinor: null,
+        feeCategoryId: null,
+      },
+    };
+  }
   return {
     write: {
-      kindId: form.kindId,
-      amountMinor,
-      occurredAt,
-      accountId: form.accountId,
-      counterAccountId: form.counterAccountId,
-      counterAmountMinor: dest,
-      categoryId: form.categoryId,
-      feeCategoryId: fee > 0 ? form.feeCategoryId || null : null,
-      note: form.note.trim() || null,
-      tagNames: form.tags,
+      ...base,
+      counterAccountId: null,
+      counterAmountMinor: null,
+      feeCategoryId: null,
     },
   };
 }
@@ -137,6 +172,8 @@ export default function EntryForm({
   const srcAmt = parseCny(form.amount);
   const dstAmt = parseCny(form.destAmount || form.amount);
   const fee = srcAmt != null && dstAmt != null ? srcAmt - dstAmt : 0;
+  const accountLabel = kind?.primaryAccountLabelKey ? t(kind.primaryAccountLabelKey) : t("field.account");
+  const counterLabel = kind?.counterAccountLabelKey ? t(kind.counterAccountLabelKey) : t("field.destAccount");
 
   const feeSubs = useMemo(() => {
     const feeCat = categories.find((c) => c.id === form.feeCategoryId);
@@ -163,7 +200,7 @@ export default function EntryForm({
       </div>
       {kind?.hintKey && <p className="hint">{t(kind.hintKey)}</p>}
       <div className="field">
-        <label>{kind?.counterpartyRequired ? t("field.sourceAmount") : t("field.amount")}</label>
+        <label>{kind?.counterAmountRequired ? t("field.sourceAmount") : t("field.amount")}</label>
         <input
           ref={amountRef}
           className="amount-input mono"
@@ -174,14 +211,14 @@ export default function EntryForm({
               ...form,
               amount,
               destAmount:
-                kind?.counterpartyRequired && (!form.destAmount || form.destAmount === form.amount)
+                kind?.counterAmountRequired && (!form.destAmount || form.destAmount === form.amount)
                   ? amount
                   : form.destAmount,
             });
           }}
         />
       </div>
-      {kind?.counterpartyRequired && (
+      {kind?.counterAmountRequired && (
         <>
           <div className="field">
             <label>{t("field.destAmount")}</label>
@@ -231,7 +268,7 @@ export default function EntryForm({
         </div>
       </div>
       <div className="field">
-        <label>{t("field.account")}</label>
+        <label>{accountLabel}</label>
         <select
           value={form.accountId}
           onChange={(e) => setForm({ ...form, accountId: e.target.value })}
@@ -243,9 +280,9 @@ export default function EntryForm({
           ))}
         </select>
       </div>
-      {kind?.counterpartyRequired && (
+      {kind?.counterAccountRequired && (
         <div className="field">
-          <label>{t("field.destAccount")}</label>
+          <label>{counterLabel}</label>
           <select
             value={form.counterAccountId}
             onChange={(e) => setForm({ ...form, counterAccountId: e.target.value })}
@@ -290,7 +327,7 @@ export default function EntryForm({
           </select>
         </div>
       </div>
-      {kind?.counterpartyRequired && fee > 0 && (
+      {kind?.counterAmountRequired && fee > 0 && (
         <div className="row">
           <div className="field" style={{ flex: 1 }}>
             <label>{t("field.feeCategory")}</label>
