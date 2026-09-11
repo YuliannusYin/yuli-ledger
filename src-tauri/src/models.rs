@@ -217,6 +217,7 @@ pub struct BootstrapDto {
     pub db_path: String,
     pub resolved_language: String,
     pub system_language: Option<String>,
+    pub category_palette: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

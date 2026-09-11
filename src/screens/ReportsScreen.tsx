@@ -205,7 +205,7 @@ export default function ReportsScreen({
           </p>
           <div className="section">
             <h2>{t("report.trend")}</h2>
-            <TrendChart points={report.trend} color={color} locale={locale} />
+            <TrendChart points={report.trend} color={color} locale={locale} mode={mode} />
           </div>
           <div className="section">
             <div className="toolbar">
@@ -264,7 +264,7 @@ export default function ReportsScreen({
           {report.comparison && (
             <div className="section">
               <h2>{t("report.comparison")}</h2>
-              <BarChart bars={report.comparison} color={color} locale={locale} />
+              <BarChart bars={report.comparison} color={color} locale={locale} mode={mode} />
             </div>
           )}
           <div className="section">

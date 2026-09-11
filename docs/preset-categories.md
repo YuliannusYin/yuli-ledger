@@ -21,7 +21,7 @@ Related: [domain-model.md](domain-model.md) (tree rules and delete rules), [entr
 - Pickers load mains and subs from SQLite.
 - The seed in this file is **initial data**, not a closed enum in the client.
 - Do not `match` on `preset.category.transport` in UI logic. The only stored special-case id is `LedgerSettings.defaultFeeCategoryId`, which starts as the seeded Transfer-fee sub and can be pointed at any other sub (or cleared) if the user deletes or replaces it.
-- Seed `colorHex` on each main from the table in [ui.md](ui.md). Subs have no stored color.
+- Seed `colorHex` on each main from the table in [ui.md](ui.md). Subs have no stored color. The user may later pick another palette color for a main.
 
 ## Investment (read this)
 

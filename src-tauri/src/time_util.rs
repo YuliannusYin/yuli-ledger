@@ -46,6 +46,11 @@ pub fn format_local_date(d: NaiveDate) -> String {
     d.format("%Y-%m-%d").to_string()
 }
 
+pub fn format_local_datetime(occurred_at: &str) -> Result<String> {
+    let dt = parse_utc_minute(occurred_at)?.with_timezone(&Local);
+    Ok(dt.format("%Y-%m-%d %H:%M").to_string())
+}
+
 pub fn utc_to_local_date(utc: DateTime<Utc>) -> NaiveDate {
     utc.with_timezone(&Local).date_naive()
 }

@@ -139,6 +139,7 @@ label,
 input[type="text"],
 input[type="number"],
 input[type="date"],
+input[type="time"],
 input[type="datetime-local"],
 select,
 textarea {
@@ -158,8 +159,25 @@ textarea {
 
 .row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  align-items: end;
+  align-items: flex-end;
+}
+
+.row > .field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.row input[type="date"],
+.row input[type="time"] {
+  width: auto;
+  min-width: 0;
+  flex: 1;
+}
+
+.row > .btn {
+  flex: 0 0 auto;
 }
 
 .field {
@@ -206,6 +224,10 @@ textarea {
 .btn.primary {
   background: var(--fill);
   font-weight: 500;
+}
+
+.btn-block {
+  width: 100%;
 }
 
 .btn.danger {
@@ -282,6 +304,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   height: 32px;
   padding: 0 8px;
   border: 1px solid transparent;
@@ -422,8 +445,75 @@ textarea {
 }
 
 .chart {
-  height: 180px;
+  height: 228px;
   margin: 8px 0 16px;
+  position: relative;
+}
+
+.chart-axis {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: "IBM Plex Mono", "Noto Sans SC", monospace;
+}
+
+.chart-tooltip {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 8px;
+  pointer-events: none;
+  z-index: 10;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.split.accounts {
+  grid-template-columns: 320px 1fr;
+}
+
+.list-item-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-figures {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-balance {
+  color: var(--account-balance);
+}
+
+.account-debt {
+  color: var(--account-debt);
+}
+
+.account-sep {
+  color: var(--muted);
+  margin: 0 4px;
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 18px);
+  gap: 4px;
+}
+
+.color-grid button {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+
+.color-grid button.active {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
 }
 
 .swatch {

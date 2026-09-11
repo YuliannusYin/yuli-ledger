@@ -71,6 +71,9 @@ Tokens (implement as CSS variables). Names are English; values are the source of
 | `--accent-neutral` | `#52525b` | Transfer / repayment amounts |
 | `--danger` | `#b91c1c` | Destructive confirm only |
 | `--focus` | `#3f3f46` | Focus ring (zinc, 2px) |
+| `--fill` | `#e4e4e7` | Selected chrome |
+| `--account-balance` | `#c9a227` | Current account balance (gold) |
+| `--account-debt` | `#c2410c` | Current account debt (orange-red) |
 
 **Dark**
 
@@ -86,8 +89,10 @@ Tokens (implement as CSS variables). Names are English; values are the source of
 | `--accent-neutral` | `#a1a1aa` |
 | `--danger` | `#f87171` |
 | `--focus` | `#d4d4d8` |
+| `--account-balance` | `#e4c15a` |
+| `--account-debt` | `#f97316` |
 
-Trend and comparison series use `--accent-in` / `--accent-out` only. **Composition pie** uses per-category colors stored on the main category (`colorHex`). Subcategory slices use the parent hue at stepped lightness (sibling `sortOrder`). Do not use a random rainbow; use the muted palette below.
+Trend and comparison series use `--accent-in` / `--accent-out` only. Trend and comparison charts draw **X/Y ticks** (dates / amounts) and a zinc hover tooltip (`date + amount` in mono). **Composition pie** uses per-category colors stored on the main category (`colorHex`). Subcategory slices use the parent hue at stepped lightness (sibling `sortOrder`). Do not use a random rainbow; use the muted palette below.
 
 ### Category palette (mains)
 
@@ -109,17 +114,18 @@ Light theme hex (dark theme: same hue, lift lightness so slices stay distinct on
 | `preset.category.transfer` | `#57534e` |
 | `preset.category.finance` | `#1e3a5f` |
 
-User-created mains: assign the next unused color from this list, then overflow: `#6b7280`, `#854d0e`, `#115e59`, `#6b21a8`, `#9a3412`, `#164e63`. Persist `colorHex` so slices do not shuffle. v1 may auto-assign only (no color picker).
+User-created mains: assign the next unused color from the **64-color built-in palette** (the 13 seed colors, then overflow `#6b7280`, `#854d0e`, `#115e59`, `#6b21a8`, `#9a3412`, `#164e63`, then further muted hues). Persist `colorHex` so slices do not shuffle. The Categories editor shows an 8×8 swatch grid; clicking a swatch writes that hex immediately. Only palette colors are allowed; duplicates across mains are allowed. Subs still store `null` and inherit the parent hue.
 
 ## Recording (speed)
 
 Job: under a minute, preferably **one glance + keyboard**.
 
-- Single column form on `--surface`, not stepped screens.
-- **Amount** is the first and largest field (mono, ~28–32px). Transfer: source amount first; destination amount on the next row, defaulting to the same value; if they differ, show fee on a third row in `--accent-out`.
+- Single column form on `--surface`, not stepped screens. Record form about 720px wide, left-aligned.
+- **Amount** is the first and largest field (mono, ~28–32px). Transfer: source and destination amounts on **one row**; destination defaults to the source value; if they differ, show fee on the next line in `--accent-out`.
+- **Occurred at:** native `date` + `time` (minute precision) plus a **Now** control that fills the current local minute. After save, keep the last recorded time (do not auto-reset to now).
 - **Kind:** horizontal set of equal hairline buttons generated from the kind registry (must grow past two). Selected = zinc fill + label, not a colorful rainbow per kind.
-- Account, category (main then sub), tags, note: compact rows. Category: two selects, not a deep tree widget.
-- Primary action: **Save** (`Ctrl+Enter`). After a successful save, **stay on Record**, clear amount/note/tags, keep kind/account/category/**time**. Persist that kept configuration in ledger settings so a restart restores it.
+- Account (and counterparty when the kind needs it) on one row; category **main | sub** two selects on one row, not a deep tree widget. Tags, note: compact rows below.
+- Primary action: **Save** (`Ctrl+Enter`), full width of the Record form. After a successful save, **stay on Record**, clear amount/note/tags, keep kind/account/category/**time**. Persist that kept configuration in ledger settings so a restart restores it.
 - Validation: inline under the field, zinc + `--danger` text, no modal for ordinary errors.
 - Delete is not on this screen (edit/delete from ledger inspector).
 
@@ -138,22 +144,22 @@ Information architecture: [features.md](features.md).
 - One working column, not a stack of rounded marketing cards.
 - Top: hairline **tabs** (Week, Month, Year, Custom) + prev/next or date pair + **Expense | Income** segmented control.
 - **Figures first** (mono).
-- **Trend:** point-line (stroke 1.5–2px, small square or circle marks, **no** filled area).
+- **Trend:** point-line (stroke 1.5–2px, small square or circle marks, **no** filled area). Draw X (dates) and Y (amounts) ticks; hover shows that bucket’s date and amount in mono.
 - **Composition:** 2D pie + table (swatch, name, amount, percent). Pie hole optional (donut is allowed if the center shows the side total in mono); no 3D, no slice explode.
-- **Comparison:** eight zinc bars, current period outlined; fill `--accent-out` or `--accent-in` by side.
+- **Comparison:** eight zinc bars, current period outlined; fill `--accent-out` or `--accent-in` by side. Same X/Y ticks and hover as the trend chart.
 - **Ranking:** ledger-like table.
 - Secondary repayment / transfer volume / fees: one muted line.
 - Click a ranking row: Ledger + inspector.
 
 ## Accounts and categories
 
-- **Split list:** left list of accounts or mains; right editor (name, kind, opening balance, opening debt, **note** for accounts; children for a main).
+- **Split list:** left list of accounts or mains; right editor (name, kind, opening balance, opening debt, **note** for accounts; children and color grid for a main). Account current figures on the list and in the editor summary: signed **balance** (gold `--account-balance`) `|` signed **debt** (orange-red `--account-debt`), no extra words.
 - Delete: enabled only when rules in [features.md](features.md) allow; otherwise disabled with a one-line reason (e.g. “Used by 12 entries”).
 - Reorder: simple up/down or drag; visual = hairline grab, not colorful chips.
 
 ## Settings
 
-Quiet list: language, color scheme, default account, default fee category, **read-only database path** (copy button). No account-cloud banners.
+Quiet list: language, color scheme, default account, default fee category, **read-only database path** (copy button), **export** (CSV entries with optional date range; JSON full backup). No account-cloud banners. No import.
 
 ## Keyboard (v1)
 

@@ -181,6 +181,7 @@ export type BootstrapDto = {
   dbPath: string;
   resolvedLanguage: string;
   systemLanguage: string | null;
+  categoryPalette: string[];
 };
 
 export type AppError = {

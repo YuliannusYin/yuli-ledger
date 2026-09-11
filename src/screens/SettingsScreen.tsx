@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { save } from "@tauri-apps/plugin-dialog";
 import type { AccountDto, CategoryDto, SettingsDto } from "../lib/types";
-import { updateSettings } from "../lib/api";
+import { exportBackupJson, exportEntriesCsv, updateSettings } from "../lib/api";
 import { accountName, categoryName, mains, subsOf } from "../lib/names";
+import en from "../i18n/en";
 
 export default function SettingsScreen({
   settings,
@@ -19,11 +21,59 @@ export default function SettingsScreen({
 }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
-  const subs = categories.filter((c) => c.parentId);
+  const [csvFrom, setCsvFrom] = useState("");
+  const [csvTo, setCsvTo] = useState("");
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [exportErr, setExportErr] = useState<string | null>(null);
 
   async function patch(partial: Partial<SettingsDto>) {
     await updateSettings({ ...settings, ...partial });
     await onChanged();
+  }
+
+  function labels(): Record<string, string> {
+    return Object.fromEntries(Object.keys(en).map((k) => [k, t(k)]));
+  }
+
+  async function exportCsv() {
+    setExportMsg(null);
+    setExportErr(null);
+    const path = await save({
+      defaultPath: "yuli-ledger-entries.csv",
+      filters: [{ name: "CSV", extensions: ["csv"] }],
+    });
+    if (!path) return;
+    try {
+      await exportEntriesCsv({
+        path,
+        fromDate: csvFrom.trim() || null,
+        toDate: csvTo.trim() || null,
+        labels: labels(),
+      });
+      setExportMsg("settings.export.ok");
+    } catch (ex) {
+      setExportErr(
+        typeof ex === "object" && ex && "code" in ex ? String((ex as { code: string }).code) : "error.io",
+      );
+    }
+  }
+
+  async function exportJson() {
+    setExportMsg(null);
+    setExportErr(null);
+    const path = await save({
+      defaultPath: "yuli-ledger-backup.json",
+      filters: [{ name: "JSON", extensions: ["json"] }],
+    });
+    if (!path) return;
+    try {
+      await exportBackupJson(path);
+      setExportMsg("settings.export.ok");
+    } catch (ex) {
+      setExportErr(
+        typeof ex === "object" && ex && "code" in ex ? String((ex as { code: string }).code) : "error.io",
+      );
+    }
   }
 
   return (
@@ -97,7 +147,25 @@ export default function SettingsScreen({
           </button>
         </div>
       </div>
-      <span hidden>{subs.length}</span>
+      <h2>{t("settings.export")}</h2>
+      <div className="field">
+        <label>{t("settings.export.csvRange")}</label>
+        <div className="row">
+          <input type="date" value={csvFrom} onChange={(e) => setCsvFrom(e.target.value)} />
+          <input type="date" value={csvTo} onChange={(e) => setCsvTo(e.target.value)} />
+        </div>
+        <p className="muted">{t("settings.export.csvHint")}</p>
+      </div>
+      <div className="row">
+        <button type="button" className="btn" onClick={() => void exportCsv()}>
+          {t("settings.export.csv")}
+        </button>
+        <button type="button" className="btn" onClick={() => void exportJson()}>
+          {t("settings.export.json")}
+        </button>
+      </div>
+      {exportMsg && <p className="muted">{t(exportMsg)}</p>}
+      {exportErr && <p className="err">{t(exportErr)}</p>}
     </div>
   );
 }

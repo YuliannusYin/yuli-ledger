@@ -3,7 +3,15 @@ import { useTranslation } from "react-i18next";
 import type { AccountDto, CategoryDto, EntryWrite, KindDto, SettingsDto } from "../lib/types";
 import { parseCny } from "../lib/money";
 import { accountName, categoryName, mains, subsOf } from "../lib/names";
-import { fromUtcIso, localParts, toUtcIso } from "../lib/time";
+import {
+  applyDateInput,
+  applyTimeInput,
+  fromUtcIso,
+  localParts,
+  partsToDateInput,
+  partsToTimeInput,
+  toUtcIso,
+} from "../lib/time";
 import TagInput from "./TagInput";
 
 export type FormState = {
@@ -199,27 +207,27 @@ export default function EntryForm({
         ))}
       </div>
       {kind?.hintKey && <p className="hint">{t(kind.hintKey)}</p>}
-      <div className="field">
-        <label>{kind?.counterAmountRequired ? t("field.sourceAmount") : t("field.amount")}</label>
-        <input
-          ref={amountRef}
-          className="amount-input mono"
-          value={form.amount}
-          onChange={(e) => {
-            const amount = e.target.value;
-            setForm({
-              ...form,
-              amount,
-              destAmount:
-                kind?.counterAmountRequired && (!form.destAmount || form.destAmount === form.amount)
-                  ? amount
-                  : form.destAmount,
-            });
-          }}
-        />
-      </div>
-      {kind?.counterAmountRequired && (
-        <>
+      <div className="row">
+        <div className="field">
+          <label>{kind?.counterAmountRequired ? t("field.sourceAmount") : t("field.amount")}</label>
+          <input
+            ref={amountRef}
+            className="amount-input mono"
+            value={form.amount}
+            onChange={(e) => {
+              const amount = e.target.value;
+              setForm({
+                ...form,
+                amount,
+                destAmount:
+                  kind?.counterAmountRequired && (!form.destAmount || form.destAmount === form.amount)
+                    ? amount
+                    : form.destAmount,
+              });
+            }}
+          />
+        </div>
+        {kind?.counterAmountRequired && (
           <div className="field">
             <label>{t("field.destAmount")}</label>
             <input
@@ -228,64 +236,40 @@ export default function EntryForm({
               onChange={(e) => setForm({ ...form, destAmount: e.target.value })}
             />
           </div>
-          {fee > 0 && (
-            <p className="muted out mono">
-              {t("field.fee")}: {(fee / 100).toFixed(2)}
-            </p>
-          )}
-        </>
+        )}
+      </div>
+      {kind?.counterAmountRequired && fee > 0 && (
+        <p className="muted out mono">
+          {t("field.fee")}: {(fee / 100).toFixed(2)}
+        </p>
       )}
-      <div className="row">
-        <div className="field" style={{ flex: 1 }}>
-          <label>{t("field.occurredAt")}</label>
-          <div className="row">
-            <input
-              type="number"
-              value={form.year}
-              onChange={(e) => setForm({ ...form, year: Number(e.target.value) })}
-            />
-            <input
-              type="number"
-              value={form.month}
-              onChange={(e) => setForm({ ...form, month: Number(e.target.value) })}
-            />
-            <input
-              type="number"
-              value={form.day}
-              onChange={(e) => setForm({ ...form, day: Number(e.target.value) })}
-            />
-            <input
-              type="number"
-              value={form.hour}
-              onChange={(e) => setForm({ ...form, hour: Number(e.target.value) })}
-            />
-            <input
-              type="number"
-              value={form.minute}
-              onChange={(e) => setForm({ ...form, minute: Number(e.target.value) })}
-            />
-          </div>
+      <div className="field">
+        <label>{t("field.occurredAt")}</label>
+        <div className="row">
+          <input
+            type="date"
+            className="mono"
+            value={partsToDateInput(form)}
+            onChange={(e) => setForm({ ...form, ...applyDateInput(form, e.target.value) })}
+          />
+          <input
+            type="time"
+            className="mono"
+            step={60}
+            value={partsToTimeInput(form)}
+            onChange={(e) => setForm({ ...form, ...applyTimeInput(form, e.target.value) })}
+          />
+          <button type="button" className="btn" onClick={() => setForm({ ...form, ...localParts() })}>
+            {t("action.now")}
+          </button>
         </div>
       </div>
-      <div className="field">
-        <label>{accountLabel}</label>
-        <select
-          value={form.accountId}
-          onChange={(e) => setForm({ ...form, accountId: e.target.value })}
-        >
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {accountName(a, t)}
-            </option>
-          ))}
-        </select>
-      </div>
-      {kind?.counterAccountRequired && (
+      <div className="row">
         <div className="field">
-          <label>{counterLabel}</label>
+          <label>{accountLabel}</label>
           <select
-            value={form.counterAccountId}
-            onChange={(e) => setForm({ ...form, counterAccountId: e.target.value })}
+            value={form.accountId}
+            onChange={(e) => setForm({ ...form, accountId: e.target.value })}
           >
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
@@ -294,9 +278,24 @@ export default function EntryForm({
             ))}
           </select>
         </div>
-      )}
+        {kind?.counterAccountRequired && (
+          <div className="field">
+            <label>{counterLabel}</label>
+            <select
+              value={form.counterAccountId}
+              onChange={(e) => setForm({ ...form, counterAccountId: e.target.value })}
+            >
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {accountName(a, t)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
       <div className="row">
-        <div className="field" style={{ flex: 1 }}>
+        <div className="field">
           <label>{t("field.mainCategory")}</label>
           <select
             value={form.mainId}
@@ -313,7 +312,7 @@ export default function EntryForm({
             ))}
           </select>
         </div>
-        <div className="field" style={{ flex: 1 }}>
+        <div className="field">
           <label>{t("field.subCategory")}</label>
           <select
             value={form.categoryId}
@@ -329,7 +328,7 @@ export default function EntryForm({
       </div>
       {kind?.counterAmountRequired && fee > 0 && (
         <div className="row">
-          <div className="field" style={{ flex: 1 }}>
+          <div className="field">
             <label>{t("field.feeCategory")}</label>
             <select
               value={feeMainId}
@@ -345,7 +344,7 @@ export default function EntryForm({
               ))}
             </select>
           </div>
-          <div className="field" style={{ flex: 1 }}>
+          <div className="field">
             <label>&nbsp;</label>
             <select
               value={form.feeCategoryId}

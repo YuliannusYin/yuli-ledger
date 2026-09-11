@@ -50,6 +50,8 @@ export const createSubCategory = (parentId: string, name: string) =>
   api<CategoryDto[]>("create_sub_category", { parentId, name });
 export const renameCategory = (id: string, name: string) =>
   api<CategoryDto[]>("rename_category", { id, name });
+export const updateCategoryColor = (id: string, colorHex: string) =>
+  api<CategoryDto[]>("update_category_color", { id, colorHex });
 export const deleteCategory = (id: string) => api<void>("delete_category", { id });
 export const reorderCategories = (parentId: string | null, orderedIds: string[]) =>
   api<void>("reorder_categories", { parentId, orderedIds });
@@ -63,3 +65,10 @@ export const listEntries = (filter: LedgerFilter) =>
   api<EntryDto[]>("list_entries", { filter });
 export const getReport = (query: ReportQuery) => api<ReportDto>("get_report", { query });
 export const listTags = () => api<TagDto[]>("list_tags");
+export const exportEntriesCsv = (args: {
+  path: string;
+  fromDate: string | null;
+  toDate: string | null;
+  labels: Record<string, string>;
+}) => api<void>("export_entries_csv", args);
+export const exportBackupJson = (path: string) => api<void>("export_backup_json", { path });

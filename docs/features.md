@@ -61,7 +61,7 @@ First-class management, not a hidden settings dump. All lists come from the data
 
 **Categories**
 
-- Create, rename, reorder **mains** and **subs**
+- Create, rename, reorder **mains** and **subs**; pick a main’s color from the built-in palette
 - Delete a sub if no entry uses it and it is not `defaultFeeCategoryId`
 - Delete a main if all descendants are unused (children deleted with it)
 
@@ -137,10 +137,10 @@ Order on the page:
 
 1. **Mode tabs** + period chrome + side toggle  
 2. **Figures** — side total; average (week/month/custom: **per day**; year: **per month**); week/month: vs previous period (环比); year: vs last year (同比) as a number  
-3. **Trend** — **point-line chart** (line + dots, no area fill) over the trend points in the table above. Hover shows that bucket’s amount (mono). Expense `--accent-out`, income `--accent-in`. Empty buckets at 0.  
+3. **Trend** — **point-line chart** (line + dots, no area fill) over the trend points in the table above. **X/Y ticks** (dates / amounts). Hover shows that bucket’s date and amount (mono). Expense `--accent-out`, income `--accent-in`. Empty buckets at 0.  
 4. **Composition** — toggle **by main category** / **by subcategory**. A **pie** (2D, no 3D, no donut hole required) **and** a table of amount + percent (like a legend with numbers). Sort table by amount descending; percent of the **side total**; omit zeros. Slice color = category `colorHex` ([ui.md](ui.md)). Transfer fees use `feeCategoryId`. If the pie would have **more than 10** slices, draw the largest 9 plus an **Other** slice; the table still lists every row.  
 5. **By account** — same side, same period (table; not a second pie)  
-6. **Comparison bars** — Week / Month / Year only: **eight** vertical bars, oldest on the left, **current period included** as the last bar (current + seven previous). Height = that bucket’s **side** total. Current bar: hairline emphasis. Missing history is a bar of 0, not a skipped slot.  
+6. **Comparison bars** — Week / Month / Year only: **eight** vertical bars, oldest on the left, **current period included** as the last bar (current + seven previous). Height = that bucket’s **side** total. Current bar: hairline emphasis. Missing history is a bar of 0, not a skipped slot. X ticks label each period; hover shows date and amount.  
 7. **Ranking** — entries in this period that belong to the side, highest amount first (cap **20**). Expense side: `expense` and `prepayment` rows by `amountMinor`, plus `transfer` rows with fee > 0 ranked by **fee**. Income side: `income` rows. Columns: occurred at, kind, category, note excerpt, amount. Click opens the ledger inspector on that entry. “More” applies the same period + kind filter on **Ledger**
 
 Empty period: muted “No entries in this range”, keep chrome.
@@ -149,7 +149,7 @@ Empty period: muted “No entries in this range”, keep chrome.
 
 - Tag breakdown  
 - Budgets vs actual  
-- Export CSV/PDF  
+- PDF export; WeChat / Alipay / bank **import**  
 - Generated commentary  
 - 3D charts, area-gradient under the trend line  
 - A comparison-bar strip on **Custom** mode
@@ -171,7 +171,7 @@ Do not treat this as a wireframe or component library.
 3. **Reports** — week / month / year / custom; expense or income side; sections above
 4. **Accounts** — list, create, edit (including note), delete-when-unused
 5. **Categories** — mains and subs, create, rename, delete-when-unused
-6. **Settings (minimal)** — default account, default fee category, UI language, color scheme ([ui.md](ui.md)), path to the database file (read-only display) so backup is obvious
+6. **Settings (minimal)** — default account, default fee category, UI language, color scheme ([ui.md](ui.md)), path to the database file (read-only display) so backup is obvious, **CSV entry export** (optional local date range) and **JSON backup** (settings, accounts, categories, tags, entries)
 
 Navigation is a **left rail** (Record, Ledger, Reports, Accounts, Categories, Settings). Layout, density, and chrome: [ui.md](ui.md).
 

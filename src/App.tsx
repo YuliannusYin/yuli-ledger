@@ -154,7 +154,12 @@ export default function App() {
             />
           )}
           {screen === "categories" && (
-            <CategoriesScreen categories={data.categories} locale={locale} onChanged={reload} />
+            <CategoriesScreen
+              categories={data.categories}
+              palette={data.categoryPalette}
+              locale={locale}
+              onChanged={reload}
+            />
           )}
           {screen === "settings" && (
             <SettingsScreen

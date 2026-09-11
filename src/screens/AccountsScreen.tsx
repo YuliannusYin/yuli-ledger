@@ -101,7 +101,7 @@ export default function AccountsScreen({
           {t("action.addAccount")}
         </button>
       </div>
-      <div className="split">
+      <div className="split accounts">
         <DragList
           items={accounts}
           selectedId={selected}
@@ -109,12 +109,8 @@ export default function AccountsScreen({
           onReorder={(ids) => void reorderAccounts(ids).then(onChanged)}
           render={(a) => (
             <>
-              <span>{accountName(a, t)}</span>
-              <span className="mono muted">
-                {formatMinor(a.balanceMinor, locale, true)}
-                {" · "}
-                {t("accounts.debt")} {formatMinor(a.debtMinor, locale, true)}
-              </span>
+              <span className="list-item-name">{accountName(a, t)}</span>
+              <AccountFigures balanceMinor={a.balanceMinor} debtMinor={a.debtMinor} locale={locale} />
             </>
           )}
         />
@@ -154,11 +150,9 @@ export default function AccountsScreen({
               <label>{t("field.accountNote")}</label>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
-            <p className="muted">
-              {t("accounts.balance")}: <span className="mono">{formatMinor(acc.balanceMinor, locale, true)}</span>
-              {" · "}
-              {t("accounts.debt")}: <span className="mono">{formatMinor(acc.debtMinor, locale, true)}</span>
-              {settings.defaultAccountId === acc.id ? ` · ${t("accounts.default")}` : ""}
+            <p className="muted" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <AccountFigures balanceMinor={acc.balanceMinor} debtMinor={acc.debtMinor} locale={locale} />
+              {settings.defaultAccountId === acc.id ? <span>{t("accounts.default")}</span> : null}
             </p>
             {error && <p className="err">{t(error)}</p>}
             <div className="row">
@@ -211,6 +205,24 @@ export default function AccountsScreen({
         />
       )}
     </div>
+  );
+}
+
+function AccountFigures({
+  balanceMinor,
+  debtMinor,
+  locale,
+}: {
+  balanceMinor: number;
+  debtMinor: number;
+  locale: string;
+}) {
+  return (
+    <span className="mono account-figures">
+      <span className="account-balance">{formatMinor(balanceMinor, locale, true)}</span>
+      <span className="account-sep">|</span>
+      <span className="account-debt">{formatMinor(debtMinor, locale, true)}</span>
+    </span>
   );
 }
 

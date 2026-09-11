@@ -65,7 +65,7 @@ export default function RecordScreen({
   }
 
   return (
-    <form className="surface" style={{ maxWidth: 560, padding: 16 }} onSubmit={(e) => void onSubmit(e)}>
+    <form className="surface" style={{ maxWidth: 720, padding: 16 }} onSubmit={(e) => void onSubmit(e)}>
       <h1>{t("nav.record")}</h1>
       <EntryForm
         form={form}
@@ -76,7 +76,7 @@ export default function RecordScreen({
         error={error}
         amountRef={amountFocusRef}
       />
-      <button type="submit" className="btn primary">
+      <button type="submit" className="btn primary btn-block">
         {t("action.save")}
       </button>
     </form>

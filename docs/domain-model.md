@@ -152,7 +152,7 @@ Same `openingAt` cutoff as balance. Debt may be negative if repayments exceed op
 | `presetKey` | Null if user-created. |
 | `archived` | Optional hide-from-picker. Delete-when-unused is the v1 requirement. |
 | `sortOrder` | Optional. |
-| `colorHex` | `#RRGGBB` for pie slices. Required on **mains**; null on subs (derive from parent). Seeded from [ui.md](ui.md). User-created mains get the next palette color at insert. |
+| `colorHex` | `#RRGGBB` for pie slices. Required on **mains**; null on subs (derive from parent). Seeded from [ui.md](ui.md). User-created mains get the next unused palette color at insert. The user may change a main’s color later by picking from the built-in 64-color palette. |
 
 Rules:
 

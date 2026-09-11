@@ -1,4 +1,5 @@
 mod migrate;
+pub mod palette;
 mod schema;
 mod seed;
 
@@ -211,24 +212,13 @@ pub fn list_categories(conn: &Connection) -> Result<Vec<CategoryDto>> {
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
-const PALETTE: &[&str] = &[
-    "#5b7c99", "#b4532a", "#78716c", "#a16207", "#0e7490", "#4f46e5", "#3f6212",
-    "#9f1239", "#52525b", "#be185d", "#0f766e", "#57534e", "#1e3a5f", "#6b7280",
-    "#854d0e", "#115e59", "#6b21a8", "#9a3412", "#164e63",
-];
-
 fn next_main_color(conn: &Connection) -> Result<String> {
     let mut stmt = conn.prepare("SELECT color_hex FROM category WHERE parent_id IS NULL")?;
     let used: Vec<String> = stmt
         .query_map([], |r| r.get(0))?
         .filter_map(|r| r.ok())
         .collect();
-    Ok(PALETTE
-        .iter()
-        .find(|c| !used.iter().any(|u| u.eq_ignore_ascii_case(c)))
-        .copied()
-        .unwrap_or("#6b7280")
-        .to_string())
+    Ok(palette::next_unused(&used))
 }
 
 pub fn create_main_category(conn: &Connection, name: &str, other_label: &str) -> Result<Vec<CategoryDto>> {
@@ -287,6 +277,26 @@ pub fn create_sub_category(conn: &Connection, parent_id: &str, name: &str) -> Re
         "INSERT INTO category (id, parent_id, name, preset_key, sort_order, color_hex)
          VALUES (?1, ?2, ?3, NULL, ?4, NULL)",
         params![new_id(), parent_id, name, max + 1],
+    )?;
+    list_categories(conn)
+}
+
+pub fn update_category_color(conn: &Connection, id: &str, color_hex: &str) -> Result<Vec<CategoryDto>> {
+    let color = color_hex.trim();
+    if !palette::is_palette_color(color) {
+        return Err(AppError::new("error.colorInvalid"));
+    }
+    let parent: Option<Option<String>> = conn
+        .query_row("SELECT parent_id FROM category WHERE id = ?1", [id], |r| r.get(0))
+        .optional()?;
+    match parent {
+        None => return Err(AppError::new("error.categoryNotFound")),
+        Some(Some(_)) => return Err(AppError::new("error.notMainCategory")),
+        Some(None) => {}
+    }
+    conn.execute(
+        "UPDATE category SET color_hex = ?1 WHERE id = ?2",
+        params![color, id],
     )?;
     list_categories(conn)
 }
@@ -1090,5 +1100,42 @@ mod tests {
         assert_eq!(debt_row.debt_minor, 5000 + 2000 - 800);
         let (inc, exp) = registry::pnl_amounts("prepayment", 2000, None);
         assert_eq!((inc, exp), (0, 2000));
+    }
+
+    #[test]
+    fn update_main_color_and_reject_sub_or_unknown() {
+        let db = temp_conn();
+        let mains = list_categories(&db.conn)
+            .unwrap()
+            .into_iter()
+            .filter(|c| c.parent_id.is_none())
+            .collect::<Vec<_>>();
+        let main = &mains[0];
+        let next = palette::CATEGORY_PALETTE[20];
+        let updated = update_category_color(&db.conn, &main.id, next).unwrap();
+        let got = updated.iter().find(|c| c.id == main.id).unwrap();
+        assert_eq!(got.color_hex.as_deref(), Some(next));
+
+        let sub = list_categories(&db.conn)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.parent_id.as_deref() == Some(main.id.as_str()))
+            .unwrap();
+        assert_eq!(
+            update_category_color(&db.conn, &sub.id, next).unwrap_err().code,
+            "error.notMainCategory"
+        );
+        assert_eq!(
+            update_category_color(&db.conn, &main.id, "#ffffff")
+                .unwrap_err()
+                .code,
+            "error.colorInvalid"
+        );
+        assert_eq!(
+            update_category_color(&db.conn, "missing", next)
+                .unwrap_err()
+                .code,
+            "error.categoryNotFound"
+        );
     }
 }

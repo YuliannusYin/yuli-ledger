@@ -8,17 +8,21 @@ import {
   deleteCategory,
   renameCategory,
   reorderCategories,
+  updateCategoryColor,
 } from "../lib/api";
 import { categoryName, mains, subsOf } from "../lib/names";
 import ConfirmDialog from "../components/ConfirmDialog";
+import ColorGrid from "../components/ColorGrid";
 import DragList from "../components/DragList";
 
 export default function CategoriesScreen({
   categories,
+  palette,
   locale,
   onChanged,
 }: {
   categories: CategoryDto[];
+  palette: string[];
   locale: string;
   onChanged: () => Promise<void>;
 }) {
@@ -77,7 +81,7 @@ export default function CategoriesScreen({
           render={(m) => (
             <span>
               <span className="swatch" style={{ background: m.colorHex ?? "#52525b" }} />
-              {categoryName(m, t)}
+              <span className="list-item-name">{categoryName(m, t)}</span>
             </span>
           )}
         />
@@ -87,6 +91,14 @@ export default function CategoriesScreen({
               <div className="field">
                 <label>{t("field.name")}</label>
                 <input value={mainName} onChange={(e) => setMainName(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>{t("field.color")}</label>
+                <ColorGrid
+                  colors={palette}
+                  value={main.colorHex}
+                  onSelect={(hex) => void updateCategoryColor(main.id, hex).then(onChanged)}
+                />
               </div>
               <div className="row">
                 <button

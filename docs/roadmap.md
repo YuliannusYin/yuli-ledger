@@ -34,7 +34,7 @@ v1 is **not** done when the kind registry exists only on paper; the registry mus
 
 Order can change; dependencies cannot.
 
-1. **Quality of life** — CSV export, more filters, tag report, recurring drafts, attachments.
+1. **Quality of life** — more filters, tag report, recurring drafts, attachments. (CSV export and JSON backup are in Settings.)
 2. **Named debts** — a dedicated liability entity beyond the per-account derived debt number; `repayment` payload may point at it; still `reportBucket: none`.
 3. **Prepayment settlement** — consume a prepayment into `expense` (or a settlement kind) **without** moving cash a second time.
 4. **Budgets** — sit on categories and time ranges; they must not alter posted entries.

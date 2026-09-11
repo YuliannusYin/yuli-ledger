@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 use tauri::State;
 
 use crate::db;
 use crate::error::Result;
+use crate::export;
 use crate::kinds::registry;
 use crate::models::*;
 use crate::reports;
@@ -42,6 +44,7 @@ pub fn get_bootstrap(state: State<DbState>) -> Result<BootstrapDto> {
         db_path: db::default_db_path().display().to_string(),
         resolved_language,
         system_language: db::system_language(),
+        category_palette: db::palette::all(),
     })
 }
 
@@ -126,6 +129,16 @@ pub fn rename_category(state: State<DbState>, id: String, name: String) -> Resul
 }
 
 #[tauri::command]
+pub fn update_category_color(
+    state: State<DbState>,
+    id: String,
+    color_hex: String,
+) -> Result<Vec<CategoryDto>> {
+    let conn = lock(&state)?;
+    db::update_category_color(&conn, &id, &color_hex)
+}
+
+#[tauri::command]
 pub fn delete_category(state: State<DbState>, id: String) -> Result<()> {
     let conn = lock(&state)?;
     db::delete_category(&conn, &id)
@@ -195,4 +208,22 @@ pub fn get_report(state: State<DbState>, query: ReportQuery) -> Result<ReportDto
     let entries = db::list_all_entry_rows(&conn)?;
     let categories = db::list_categories(&conn)?;
     reports::build_report(&entries, &categories, &query)
+}
+
+#[tauri::command]
+pub fn export_entries_csv(
+    state: State<DbState>,
+    path: String,
+    from_date: Option<String>,
+    to_date: Option<String>,
+    labels: HashMap<String, String>,
+) -> Result<()> {
+    let conn = lock(&state)?;
+    export::write_entries_csv(&conn, &path, from_date, to_date, &labels)
+}
+
+#[tauri::command]
+pub fn export_backup_json(state: State<DbState>, path: String) -> Result<()> {
+    let conn = lock(&state)?;
+    export::write_backup_json(&conn, &path)
 }

@@ -2,9 +2,9 @@ mod balance;
 mod commands;
 mod db;
 mod error;
+mod export;
 mod kinds;
 mod models;
-#[allow(dead_code)]
 mod money;
 mod reports;
 mod time_util;
@@ -19,6 +19,7 @@ pub fn run() {
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED)
                 .build(),
         )
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let conn = db::open_ledger().map_err(|e| e.to_string())?;
             app.manage(commands::DbState {
@@ -41,6 +42,7 @@ pub fn run() {
             commands::create_main_category,
             commands::create_sub_category,
             commands::rename_category,
+            commands::update_category_color,
             commands::delete_category,
             commands::reorder_categories,
             commands::category_usage,
@@ -51,7 +53,9 @@ pub fn run() {
             commands::delete_entry,
             commands::get_entry,
             commands::list_entries,
-            commands::get_report
+            commands::get_report,
+            commands::export_entries_csv,
+            commands::export_backup_json
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
