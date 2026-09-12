@@ -65,6 +65,7 @@ export type SettingsDto = {
   schemaVersion: number;
   uiLanguage: string | null;
   colorScheme: string | null;
+  uiTheme: string | null;
   defaultFeeCategoryId: string | null;
   reportMode: string | null;
   reportSide: string | null;

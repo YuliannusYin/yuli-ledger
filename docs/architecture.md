@@ -4,7 +4,7 @@ Target runtime: **one Windows desktop process**, **no server**, **no network req
 
 **Developers** still install Node.js and Rust to *build* it. **You, using the finished app**, do not.
 
-Product constraints: [product.md](product.md). Data shape: [domain-model.md](domain-model.md). Visual language: [ui.md](ui.md) (zinc, compact, IBM Plex / Noto Sans SC). Do not pick Ant Design / MUI defaults.
+Product constraints: [product.md](product.md). Data shape: [domain-model.md](domain-model.md). Visual language: [ui.md](ui.md) (Metal zinc default, compact Record; named skins swap tokens). Do not pick Ant Design / MUI defaults.
 
 ## Stack
 

@@ -16,6 +16,7 @@ pub fn apply(conn: &Connection) -> Result<()> {
     add_column_if_missing(conn, "ledger_settings", "last_category_id", "TEXT")?;
     add_column_if_missing(conn, "ledger_settings", "last_fee_category_id", "TEXT")?;
     add_column_if_missing(conn, "ledger_settings", "last_occurred_at", "TEXT")?;
+    add_column_if_missing(conn, "ledger_settings", "ui_theme", "TEXT")?;
     conn.execute(
         "UPDATE ledger_settings SET schema_version = ?1 WHERE id = 1",
         params![SCHEMA_VERSION],

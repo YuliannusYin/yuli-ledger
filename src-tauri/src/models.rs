@@ -60,6 +60,7 @@ pub struct SettingsDto {
     pub schema_version: i32,
     pub ui_language: Option<String>,
     pub color_scheme: Option<String>,
+    pub ui_theme: Option<String>,
     pub default_fee_category_id: Option<String>,
     pub report_mode: Option<String>,
     pub report_side: Option<String>,

@@ -11,7 +11,7 @@ You can run a Windows desktop build (Tauri) that:
 - Transfer: two accounts, destination amount, optional fee on the same row (WeChat → bank is this kind)
 - Lists those entries as a ledger with the filters in [features.md](features.md)
 - Shows reports per [features.md](features.md): week / month / year / custom; point-line trend; pie + table; 8-period comparison bars; ranking
-- Switches UI language between `en` and `zh-Hans`, and color scheme light/dark/system
+- Switches UI language between `en` and `zh-Hans`, named theme (`metal` / `claude` / `vscode` / `github` / `tiktok`), and color scheme light/dark/system
 - UI follows [ui.md](ui.md) (zinc, compact Record loop)
 - Stores everything in `%LOCALAPPDATA%\YuliLedger\ledger.sqlite` and shows that path for backup
 - Can be built into an **NSIS installer** and a **portable folder**; both open a desktop window, not a browser

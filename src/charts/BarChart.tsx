@@ -136,7 +136,7 @@ export default function BarChart({
                     color: "var(--text)",
                     border: "1px solid var(--line)",
                     boxShadow: "none",
-                    borderRadius: 2,
+                    borderRadius: "var(--radius)",
                     padding: "4px 8px",
                     fontSize: 12,
                   }}

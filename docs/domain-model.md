@@ -75,6 +75,7 @@ There is one ledger per database. `LedgerSettings` is a single-row (or key-value
 | `schemaVersion` | Integer for future migrations. |
 | `uiLanguage` | Optional. `en` or `zh-Hans` when the user has chosen a language; null means follow the rule in [i18n.md](i18n.md). |
 | `colorScheme` | Optional. `light` \| `dark` \| `system`. Null means `system`. Visual tokens: [ui.md](ui.md). |
+| `uiTheme` | Optional. `metal` \| `claude` \| `vscode` \| `github` \| `tiktok`. Null means `metal`. Independent of `colorScheme`. |
 | `defaultFeeCategoryId` | Optional subcategory used as the initial `feeCategoryId` on a transfer with a fee. Seeded to Transfer → Transfer fee. Null if the user cleared it or deleted that category after retargeting. |
 | `reportMode` | Optional last Reports tab: `week` \| `month` \| `year` \| `custom`. Null → `month`. |
 | `reportSide` | Optional last side: `expense` \| `income`. Null → `expense`. |

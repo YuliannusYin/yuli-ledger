@@ -171,7 +171,7 @@ Do not treat this as a wireframe or component library.
 3. **Reports** — week / month / year / custom; expense or income side; sections above
 4. **Accounts** — list, create, edit (including note), delete-when-unused
 5. **Categories** — mains and subs, create, rename, delete-when-unused
-6. **Settings (minimal)** — default account, default fee category, UI language, color scheme ([ui.md](ui.md)), path to the database file (read-only display) so backup is obvious, **CSV and TXT entry export** (optional local date range; TXT is one tab-separated line per entry) and **JSON backup** (settings, accounts, categories, tags, entries)
+6. **Settings (minimal)** — default account, default fee category, UI language, named theme, color scheme ([ui.md](ui.md)), path to the database file (read-only display) so backup is obvious, **CSV and TXT entry export** (optional local date range; TXT is one tab-separated line per entry) and **JSON backup** (settings, accounts, categories, tags, entries)
 
 Navigation is a **left rail** (Record, Ledger, Reports, Accounts, Categories, Settings). Layout, density, and chrome: [ui.md](ui.md).
 

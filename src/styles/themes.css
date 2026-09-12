@@ -1,0 +1,251 @@
+:root,
+html[data-skin="metal"][data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f4f5;
+  --surface: #fafafa;
+  --line: #d4d4d8;
+  --text: #18181b;
+  --muted: #71717a;
+  --accent-in: #0e7490;
+  --accent-out: #c2410c;
+  --accent-neutral: #52525b;
+  --danger: #b91c1c;
+  --focus: #3f3f46;
+  --fill: #e4e4e7;
+  --titlebar: #e4e4e7;
+  --account-balance: #c9a227;
+  --account-debt: #c2410c;
+  --accent: #3f3f46;
+  --radius: 2px;
+  --font-ui: "IBM Plex Sans", "Noto Sans SC", sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans SC", monospace;
+  --rail-bg: #f4f4f5;
+  --rail-text: #18181b;
+  --shadow: none;
+}
+
+html[data-theme="dark"]:not([data-skin]),
+html[data-skin="metal"][data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #18181b;
+  --surface: #27272a;
+  --line: #3f3f46;
+  --text: #fafafa;
+  --muted: #a1a1aa;
+  --accent-in: #22d3ee;
+  --accent-out: #fb923c;
+  --accent-neutral: #a1a1aa;
+  --danger: #f87171;
+  --focus: #d4d4d8;
+  --fill: #3f3f46;
+  --titlebar: #27272a;
+  --account-balance: #e4c15a;
+  --account-debt: #f97316;
+  --accent: #d4d4d8;
+  --radius: 2px;
+  --font-ui: "IBM Plex Sans", "Noto Sans SC", sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans SC", monospace;
+  --rail-bg: #18181b;
+  --rail-text: #fafafa;
+  --shadow: none;
+}
+
+html[data-skin="claude"][data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f3ee;
+  --surface: #faf9f5;
+  --line: #e3e0d6;
+  --text: #141413;
+  --muted: #736c64;
+  --accent-in: #3d6b4f;
+  --accent-out: #c45c3e;
+  --accent-neutral: #736c64;
+  --danger: #b42318;
+  --focus: #d97757;
+  --fill: #ebe6dc;
+  --titlebar: #ebe8e0;
+  --account-balance: #b45309;
+  --account-debt: #c45c3e;
+  --accent: #d97757;
+  --radius: 4px;
+  --font-ui: "Source Sans 3", "Noto Sans SC", sans-serif;
+  --font-mono: "Source Code Pro", "Noto Sans SC", monospace;
+  --rail-bg: #efece4;
+  --rail-text: #141413;
+  --shadow: none;
+}
+
+html[data-skin="claude"][data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1f1e1d;
+  --surface: #2a2926;
+  --line: #3d3b36;
+  --text: #f5f4ed;
+  --muted: #b0aea5;
+  --accent-in: #7dba94;
+  --accent-out: #de7356;
+  --accent-neutral: #b0aea5;
+  --danger: #f87171;
+  --focus: #de7356;
+  --fill: #35332e;
+  --titlebar: #262523;
+  --account-balance: #e4c15a;
+  --account-debt: #de7356;
+  --accent: #de7356;
+  --radius: 4px;
+  --font-ui: "Source Sans 3", "Noto Sans SC", sans-serif;
+  --font-mono: "Source Code Pro", "Noto Sans SC", monospace;
+  --rail-bg: #191817;
+  --rail-text: #f5f4ed;
+  --shadow: none;
+}
+
+html[data-skin="vscode"][data-theme="light"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #f8f8f8;
+  --line: #e5e5e5;
+  --text: #3b3b3b;
+  --muted: #6a6a6a;
+  --accent-in: #0e8a16;
+  --accent-out: #a1260d;
+  --accent-neutral: #6a6a6a;
+  --danger: #e51400;
+  --focus: #005fb8;
+  --fill: #e8e8e8;
+  --titlebar: #dddddd;
+  --account-balance: #9a6700;
+  --account-debt: #a1260d;
+  --accent: #007acc;
+  --radius: 2px;
+  --font-ui: "Segoe UI", "Noto Sans SC", sans-serif;
+  --font-mono: "Cascadia Code", "Consolas", "Noto Sans SC", monospace;
+  --rail-bg: #f3f3f3;
+  --rail-text: #3b3b3b;
+  --shadow: none;
+}
+
+html[data-skin="vscode"][data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1e1e1e;
+  --surface: #252526;
+  --line: #3e3e42;
+  --text: #d4d4d4;
+  --muted: #9d9d9d;
+  --accent-in: #4ec9b0;
+  --accent-out: #ce9178;
+  --accent-neutral: #9d9d9d;
+  --danger: #f14c4c;
+  --focus: #007acc;
+  --fill: #37373d;
+  --titlebar: #3c3c3c;
+  --account-balance: #dcdcaa;
+  --account-debt: #ce9178;
+  --accent: #007acc;
+  --radius: 2px;
+  --font-ui: "Segoe UI", "Noto Sans SC", sans-serif;
+  --font-mono: "Cascadia Code", "Consolas", "Noto Sans SC", monospace;
+  --rail-bg: #252526;
+  --rail-text: #cccccc;
+  --shadow: none;
+}
+
+html[data-skin="github"][data-theme="light"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --line: #d0d7de;
+  --text: #1f2328;
+  --muted: #656d76;
+  --accent-in: #1a7f37;
+  --accent-out: #cf222e;
+  --accent-neutral: #656d76;
+  --danger: #cf222e;
+  --focus: #0969da;
+  --fill: #eaeef2;
+  --titlebar: #f6f8fa;
+  --account-balance: #9a6700;
+  --account-debt: #cf222e;
+  --accent: #0969da;
+  --radius: 6px;
+  --font-ui: "Mona Sans", "Segoe UI", "Noto Sans SC", sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans SC", monospace;
+  --rail-bg: #f6f8fa;
+  --rail-text: #1f2328;
+  --shadow: 0 1px 3px rgba(31, 35, 40, 0.12);
+}
+
+html[data-skin="github"][data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --surface: #161b22;
+  --line: #30363d;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent-in: #3fb950;
+  --accent-out: #f85149;
+  --accent-neutral: #8b949e;
+  --danger: #f85149;
+  --focus: #1f6feb;
+  --fill: #21262d;
+  --titlebar: #010409;
+  --account-balance: #d29922;
+  --account-debt: #f85149;
+  --accent: #4493f8;
+  --radius: 6px;
+  --font-ui: "Mona Sans", "Segoe UI", "Noto Sans SC", sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans SC", monospace;
+  --rail-bg: #010409;
+  --rail-text: #e6edf3;
+  --shadow: 0 1px 3px rgba(1, 4, 9, 0.4);
+}
+
+html[data-skin="tiktok"][data-theme="light"] {
+  color-scheme: light;
+  --bg: #f8f8f8;
+  --surface: #ffffff;
+  --line: #e3e3e3;
+  --text: #161823;
+  --muted: #6f707a;
+  --accent-in: #0f766e;
+  --accent-out: #e11d48;
+  --accent-neutral: #6f707a;
+  --danger: #e11d48;
+  --focus: #fe2c55;
+  --fill: #fce7eb;
+  --titlebar: #ffffff;
+  --account-balance: #b45309;
+  --account-debt: #e11d48;
+  --accent: #fe2c55;
+  --radius: 8px;
+  --font-ui: "Outfit", "Noto Sans SC", sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans SC", monospace;
+  --rail-bg: #ffffff;
+  --rail-text: #161823;
+  --shadow: none;
+}
+
+html[data-skin="tiktok"][data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --surface: #121212;
+  --line: #2f2f2f;
+  --text: #ffffff;
+  --muted: #8a8a8a;
+  --accent-in: #25f4ee;
+  --accent-out: #fe2c55;
+  --accent-neutral: #8a8a8a;
+  --danger: #fe2c55;
+  --focus: #25f4ee;
+  --fill: #1f1f1f;
+  --titlebar: #000000;
+  --account-balance: #e4c15a;
+  --account-debt: #fe2c55;
+  --accent: #fe2c55;
+  --radius: 8px;
+  --font-ui: "Outfit", "Noto Sans SC", sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans SC", monospace;
+  --rail-bg: #000000;
+  --rail-text: #ffffff;
+  --shadow: none;
+}

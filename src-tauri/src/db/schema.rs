@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS ledger_settings (
   schema_version INTEGER NOT NULL,
   ui_language TEXT,
   color_scheme TEXT,
+  ui_theme TEXT,
   default_fee_category_id TEXT REFERENCES category(id),
   report_mode TEXT,
   report_side TEXT,
@@ -80,4 +81,4 @@ CREATE INDEX IF NOT EXISTS idx_entry_kind_id ON entry (kind_id);
 CREATE INDEX IF NOT EXISTS idx_entry_tag_tag ON entry_tag (tag_id);
 "#;
 
-pub const SCHEMA_VERSION: i32 = 2;
+pub const SCHEMA_VERSION: i32 = 3;

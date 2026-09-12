@@ -4,7 +4,8 @@ import { save } from "@tauri-apps/plugin-dialog";
 import type { AccountDto, CategoryDto, SettingsDto } from "../lib/types";
 import { exportBackupJson, exportEntriesCsv, exportEntriesTxt, updateSettings } from "../lib/api";
 import { accountName, categoryName, mains, subsOf } from "../lib/names";
-import en from "../i18n/en";
+import { resolvedSkin, resolvedTheme, THEME_PREVIEWS, UI_THEMES } from "../lib/themes";
+import en, { type MessageKey } from "../i18n/en";
 
 export default function SettingsScreen({
   settings,
@@ -100,7 +101,7 @@ export default function SettingsScreen({
   }
 
   return (
-    <div className="surface" style={{ maxWidth: 560, padding: 16 }}>
+    <div className="surface" style={{ maxWidth: 640, padding: 16 }}>
       <h1>{t("nav.settings")}</h1>
       <div className="field">
         <label>{t("settings.language")}</label>
@@ -112,6 +113,30 @@ export default function SettingsScreen({
           <option value="en">English</option>
           <option value="zh-Hans">简体中文</option>
         </select>
+      </div>
+      <div className="field">
+        <label>{t("settings.uiTheme")}</label>
+        <div className="theme-grid">
+          {UI_THEMES.map((id) => {
+            const chips = THEME_PREVIEWS[id][resolvedTheme(settings.colorScheme)];
+            const selected = resolvedSkin(settings.uiTheme) === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                className={selected ? "theme-card active" : "theme-card"}
+                onClick={() => void patch({ uiTheme: id })}
+              >
+                <span className="theme-card-swatches" aria-hidden>
+                  {chips.map((hex) => (
+                    <span key={hex} style={{ background: hex }} />
+                  ))}
+                </span>
+                <span className="theme-card-label">{t(`settings.uiTheme.${id}` as MessageKey)}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="field">
         <label>{t("settings.colorScheme")}</label>

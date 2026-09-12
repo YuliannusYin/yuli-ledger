@@ -745,9 +745,9 @@ fn category_match_ids(conn: &Connection, id: &str) -> Result<Vec<String>> {
 pub fn get_settings(conn: &Connection) -> Result<SettingsDto> {
     conn.query_row(
         "SELECT currency_code, default_account_id, schema_version, ui_language, color_scheme,
-                default_fee_category_id, report_mode, report_side, report_custom_from, report_custom_to,
-                last_kind_id, last_account_id, last_counter_account_id, last_category_id,
-                last_fee_category_id, last_occurred_at
+                ui_theme, default_fee_category_id, report_mode, report_side, report_custom_from,
+                report_custom_to, last_kind_id, last_account_id, last_counter_account_id,
+                last_category_id, last_fee_category_id, last_occurred_at
          FROM ledger_settings WHERE id = 1",
         [],
         |r| {
@@ -757,17 +757,18 @@ pub fn get_settings(conn: &Connection) -> Result<SettingsDto> {
                 schema_version: r.get(2)?,
                 ui_language: r.get(3)?,
                 color_scheme: r.get(4)?,
-                default_fee_category_id: r.get(5)?,
-                report_mode: r.get(6)?,
-                report_side: r.get(7)?,
-                report_custom_from: r.get(8)?,
-                report_custom_to: r.get(9)?,
-                last_kind_id: r.get(10)?,
-                last_account_id: r.get(11)?,
-                last_counter_account_id: r.get(12)?,
-                last_category_id: r.get(13)?,
-                last_fee_category_id: r.get(14)?,
-                last_occurred_at: r.get(15)?,
+                ui_theme: r.get(5)?,
+                default_fee_category_id: r.get(6)?,
+                report_mode: r.get(7)?,
+                report_side: r.get(8)?,
+                report_custom_from: r.get(9)?,
+                report_custom_to: r.get(10)?,
+                last_kind_id: r.get(11)?,
+                last_account_id: r.get(12)?,
+                last_counter_account_id: r.get(13)?,
+                last_category_id: r.get(14)?,
+                last_fee_category_id: r.get(15)?,
+                last_occurred_at: r.get(16)?,
             })
         },
     )
@@ -792,18 +793,27 @@ pub fn update_settings(conn: &Connection, patch: SettingsDto) -> Result<Settings
             return Err(AppError::new("error.colorSchemeInvalid"));
         }
     }
+    if let Some(theme) = &patch.ui_theme {
+        if !matches!(
+            theme.as_str(),
+            "metal" | "claude" | "vscode" | "github" | "tiktok"
+        ) {
+            return Err(AppError::new("error.uiThemeInvalid"));
+        }
+    }
     conn.execute(
         "UPDATE ledger_settings SET
-            default_account_id = ?1, ui_language = ?2, color_scheme = ?3,
-            default_fee_category_id = ?4, report_mode = ?5, report_side = ?6,
-            report_custom_from = ?7, report_custom_to = ?8,
-            last_kind_id = ?9, last_account_id = ?10, last_counter_account_id = ?11,
-            last_category_id = ?12, last_fee_category_id = ?13, last_occurred_at = ?14
+            default_account_id = ?1, ui_language = ?2, color_scheme = ?3, ui_theme = ?4,
+            default_fee_category_id = ?5, report_mode = ?6, report_side = ?7,
+            report_custom_from = ?8, report_custom_to = ?9,
+            last_kind_id = ?10, last_account_id = ?11, last_counter_account_id = ?12,
+            last_category_id = ?13, last_fee_category_id = ?14, last_occurred_at = ?15
          WHERE id = 1",
         params![
             patch.default_account_id,
             patch.ui_language,
             patch.color_scheme,
+            empty_to_none(patch.ui_theme),
             patch.default_fee_category_id,
             patch.report_mode,
             patch.report_side,
@@ -887,7 +897,22 @@ mod tests {
         assert!(cats.iter().any(|c| c.preset_key.as_deref() == Some("preset.category.transfer.fee")));
         let settings = get_settings(&conn).unwrap();
         assert_eq!(settings.currency_code, "CNY");
-        assert_eq!(settings.schema_version, 2);
+        assert_eq!(settings.schema_version, 3);
+        assert_eq!(settings.ui_theme, None);
+    }
+
+    #[test]
+    fn persists_and_rejects_ui_theme() {
+        let db = temp_conn();
+        let mut settings = get_settings(&db.conn).unwrap();
+        settings.ui_theme = Some("tiktok".into());
+        let saved = update_settings(&db.conn, settings.clone()).unwrap();
+        assert_eq!(saved.ui_theme.as_deref(), Some("tiktok"));
+        settings.ui_theme = Some("solarized".into());
+        assert_eq!(
+            update_settings(&db.conn, settings).unwrap_err().code,
+            "error.uiThemeInvalid"
+        );
     }
 
     #[test]

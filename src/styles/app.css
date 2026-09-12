@@ -55,7 +55,7 @@
   width: 200px;
   flex-shrink: 0;
   border-right: 1px solid var(--line);
-  background: var(--bg);
+  background: var(--rail-bg);
   display: flex;
   flex-direction: column;
   padding: 8px 0;
@@ -74,14 +74,14 @@
   margin: 2px 8px;
   padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius);
   background: transparent;
-  color: var(--text);
+  color: var(--rail-text);
   text-align: left;
 }
 
 .rail-item.active {
-  border-color: var(--line);
+  border-color: var(--accent);
   background: var(--fill);
 }
 
@@ -103,7 +103,7 @@
   height: 28px;
   border: 1px solid var(--line);
   background: var(--surface);
-  border-radius: 2px;
+  border-radius: var(--radius);
   color: var(--muted);
 }
 
@@ -117,7 +117,8 @@
 .surface {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 h1,
@@ -147,7 +148,7 @@ textarea {
   height: 30px;
   border: 1px solid var(--line);
   background: var(--bg);
-  border-radius: 2px;
+  border-radius: var(--radius);
   padding: 0 8px;
 }
 
@@ -188,7 +189,7 @@ textarea {
   height: 36px;
   font-size: 20px;
   font-weight: 600;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -205,7 +206,7 @@ textarea {
   padding: 0 10px;
   border: 1px solid var(--line);
   background: transparent;
-  border-radius: 2px;
+  border-radius: var(--radius);
 }
 
 .kind-btn.active {
@@ -218,7 +219,7 @@ textarea {
   padding: 0 12px;
   border: 1px solid var(--line);
   background: var(--surface);
-  border-radius: 2px;
+  border-radius: var(--radius);
 }
 
 .btn.primary {
@@ -275,7 +276,7 @@ textarea {
 
 .table td.num {
   text-align: right;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -307,7 +308,7 @@ textarea {
   height: 32px;
   padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 
@@ -347,7 +348,7 @@ textarea {
   text-align: left;
   border: 0;
   background: transparent;
-  border-radius: 2px;
+  border-radius: var(--radius);
 }
 
 .ctx-menu button:hover:not(:disabled) {
@@ -393,14 +394,14 @@ textarea {
   height: 20px;
   line-height: 18px;
   margin-right: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius);
   font-size: 12px;
 }
 
 .seg {
   display: flex;
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: var(--radius);
   overflow: hidden;
 }
 
@@ -465,6 +466,7 @@ textarea {
 .modal {
   width: 360px;
   padding: 16px;
+  box-shadow: var(--shadow);
 }
 
 .tags {
@@ -473,6 +475,7 @@ textarea {
   gap: 4px;
   min-height: 30px;
   border: 1px solid var(--line);
+  border-radius: var(--radius);
   padding: 4px;
   background: var(--bg);
 }
@@ -494,7 +497,7 @@ textarea {
 .chart-axis {
   fill: var(--muted);
   font-size: 10px;
-  font-family: "IBM Plex Mono", "Noto Sans SC", monospace;
+  font-family: var(--font-mono);
 }
 
 .chart-tooltip {
@@ -505,7 +508,7 @@ textarea {
   padding: 4px 8px;
   pointer-events: none;
   z-index: 10;
-  border-radius: 2px;
+  border-radius: var(--radius);
   white-space: nowrap;
 }
 
@@ -549,7 +552,7 @@ textarea {
   height: 18px;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: var(--radius);
 }
 
 .color-grid button.active {
@@ -579,7 +582,8 @@ button.swatch {
   padding: 8px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .ledger-days {
@@ -618,14 +622,15 @@ button.swatch {
 .ledger-head .num,
 .ledger-row .num {
   text-align: right;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
 .day-card {
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: var(--radius);
   background: var(--bg);
+  box-shadow: var(--shadow);
 }
 
 .day-card-head {
@@ -642,7 +647,7 @@ button.swatch {
   display: flex;
   gap: 12px;
   font-size: 12px;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-weight: 400;
 }
@@ -695,4 +700,48 @@ button.swatch {
   font-size: 12px;
   color: var(--muted);
   margin-top: 6px;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  text-align: left;
+  color: var(--text);
+}
+
+.theme-card.active {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.theme-card-swatches {
+  display: flex;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.theme-card-swatches span {
+  flex: 1;
+}
+
+.theme-card-label {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

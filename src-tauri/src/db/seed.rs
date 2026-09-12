@@ -1,6 +1,7 @@
 use rusqlite::{params, Connection};
 use uuid::Uuid;
 
+use super::schema::SCHEMA_VERSION;
 use crate::error::Result;
 use crate::time_util::OPENING_EPOCH;
 
@@ -188,10 +189,10 @@ pub fn seed_if_empty(conn: &Connection) -> Result<()> {
     tx.execute(
         "INSERT INTO ledger_settings (
             id, currency_code, default_account_id, schema_version,
-            ui_language, color_scheme, default_fee_category_id,
+            ui_language, color_scheme, ui_theme, default_fee_category_id,
             report_mode, report_side, report_custom_from, report_custom_to
-         ) VALUES (1, 'CNY', ?1, 2, NULL, NULL, ?2, NULL, NULL, NULL, NULL)",
-        params![account_id, fee_id],
+         ) VALUES (1, 'CNY', ?1, ?2, NULL, NULL, NULL, ?3, NULL, NULL, NULL, NULL)",
+        params![account_id, SCHEMA_VERSION, fee_id],
     )?;
     tx.commit()?;
     Ok(())
