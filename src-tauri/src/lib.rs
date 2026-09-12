@@ -55,6 +55,7 @@ pub fn run() {
             commands::list_entries,
             commands::get_report,
             commands::export_entries_csv,
+            commands::export_entries_txt,
             commands::export_backup_json
         ])
         .run(tauri::generate_context!())

@@ -10,6 +10,11 @@ pub const CATEGORY_PALETTE: &[&str] = &[
     "#71717a", "#1e293b", "#1e40af", "#1d4ed8", "#0f172a", "#312e81", "#701a75",
     "#86198f", "#6b3f2a", "#2f4f4f", "#556b2f", "#8b5e3c", "#4a5568", "#2c5282",
     "#9c4221",
+    "#475569", "#1e3a8a", "#1e4d2b", "#5c4033", "#2d4a5e", "#3d5a4c", "#5a4a3a",
+    "#4b5563", "#374151", "#1f2937", "#0f3d3e", "#1a365d", "#234e52", "#276749",
+    "#553c9a", "#44337a", "#322659", "#744210", "#975a16", "#b7791f", "#9b2c2c",
+    "#742a2a", "#63171b", "#22543d", "#285e61", "#2a4365", "#2c7a7b", "#4a6741",
+    "#6d5a4b", "#3c4f6a", "#1a535c", "#6a4c3b",
 ];
 
 pub fn all() -> Vec<String> {
@@ -37,10 +42,10 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn palette_is_64_unique() {
-        assert_eq!(CATEGORY_PALETTE.len(), 64);
+    fn palette_is_96_unique() {
+        assert_eq!(CATEGORY_PALETTE.len(), 96);
         let set: HashSet<_> = CATEGORY_PALETTE.iter().map(|c| c.to_ascii_lowercase()).collect();
-        assert_eq!(set.len(), 64);
+        assert_eq!(set.len(), 96);
     }
 
     #[test]

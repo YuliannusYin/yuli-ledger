@@ -71,4 +71,10 @@ export const exportEntriesCsv = (args: {
   toDate: string | null;
   labels: Record<string, string>;
 }) => api<void>("export_entries_csv", args);
+export const exportEntriesTxt = (args: {
+  path: string;
+  fromDate: string | null;
+  toDate: string | null;
+  labels: Record<string, string>;
+}) => api<void>("export_entries_txt", args);
 export const exportBackupJson = (path: string) => api<void>("export_backup_json", { path });

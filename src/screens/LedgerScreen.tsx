@@ -11,7 +11,7 @@ import type {
 import { deleteEntry, listEntries, updateEntry } from "../lib/api";
 import { formatMinor } from "../lib/money";
 import { accountName, categoryName, mains, subsOf } from "../lib/names";
-import { formatLocalDateTime, monthRange } from "../lib/time";
+import { formatLocalDate, formatLocalTime, groupByLocalDate, monthRange } from "../lib/time";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EntryForm, { formFromWrite, toWrite, type FormState } from "../components/EntryForm";
 
@@ -129,6 +129,7 @@ export default function LedgerScreen({
 
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const accById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
+  const dayGroups = useMemo(() => groupByLocalDate(rows), [rows]);
 
   async function saveInspector() {
     if (!selected || !form) return;
@@ -295,64 +296,79 @@ export default function LedgerScreen({
             </p>
           )}
           {rows.length > 0 && (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>{t("ledger.time")}</th>
-                  <th>{t("ledger.kind")}</th>
-                  <th>{t("ledger.amount")}</th>
-                  <th>{t("ledger.account")}</th>
-                  <th>{t("ledger.category")}</th>
-                  <th>{t("ledger.tags")}</th>
-                  <th>{t("ledger.note")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
-                  const kind = kinds.find((k) => k.id === row.kindId);
-                  const src = accById.get(row.accountId);
-                  const dst = row.counterAccountId ? accById.get(row.counterAccountId) : undefined;
-                  const cat = catById.get(row.categoryId);
-                  const feeCat = row.feeCategoryId ? catById.get(row.feeCategoryId) : undefined;
-                  const fee =
-                    row.counterAmountMinor != null ? row.amountMinor - row.counterAmountMinor : 0;
-                  return (
-                    <tr
-                      key={row.id}
-                      className={selected === row.id ? "selected" : ""}
-                      onClick={() => setSelected(row.id)}
-                    >
-                      <td className="mono">{formatLocalDateTime(row.occurredAt, locale)}</td>
-                      <td>{kind ? t(kind.labelKey) : row.kindId}</td>
-                      <td className={`num ${kindClass(kind)}`}>
-                        {formatAmount(row, kind, locale)}
-                        {fee > 0 && (
-                          <div className="muted">
-                            {formatMinor(row.counterAmountMinor ?? 0, locale)} / {formatMinor(fee, locale)}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        {row.counterAccountId
-                          ? `${accountName(src, t)} → ${accountName(dst, t)}`
-                          : accountName(src, t)}
-                      </td>
-                      <td>
-                        {categoryName(cat, t)}
-                        {feeCat && fee > 0 ? ` / ${categoryName(feeCat, t)}` : ""}
-                      </td>
-                      <td>
-                        {row.tagIds
-                          .map((id) => tags.find((tg) => tg.id === id)?.name)
-                          .filter(Boolean)
-                          .join(", ")}
-                      </td>
-                      <td>{row.note?.slice(0, 40)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="ledger-days">
+              <div className="ledger-cols ledger-head">
+                <span>{t("ledger.time")}</span>
+                <span>{t("ledger.kind")}</span>
+                <span className="num">{t("ledger.amount")}</span>
+                <span>{t("ledger.account")}</span>
+                <span>{t("ledger.category")}</span>
+                <span>{t("ledger.tags")}</span>
+                <span>{t("ledger.note")}</span>
+              </div>
+              {dayGroups.map((group) => {
+                const sums = daySums(group.rows, kinds);
+                return (
+                  <section key={group.date} className="day-card">
+                    <header className="day-card-head">
+                      <span>{formatLocalDate(group.date, locale)}</span>
+                      <span className="day-card-sums">
+                        <span className="out">
+                          {t("ledger.dayExpense")} −{formatMinor(sums.expense, locale)}
+                        </span>
+                        <span className="in">
+                          {t("ledger.dayIncome")} {formatMinor(sums.income, locale, true)}
+                        </span>
+                      </span>
+                    </header>
+                    {group.rows.map((row) => {
+                      const kind = kinds.find((k) => k.id === row.kindId);
+                      const src = accById.get(row.accountId);
+                      const dst = row.counterAccountId ? accById.get(row.counterAccountId) : undefined;
+                      const cat = catById.get(row.categoryId);
+                      const feeCat = row.feeCategoryId ? catById.get(row.feeCategoryId) : undefined;
+                      const fee =
+                        row.counterAmountMinor != null ? row.amountMinor - row.counterAmountMinor : 0;
+                      return (
+                        <div
+                          key={row.id}
+                          data-entry-id={row.id}
+                          className={`ledger-cols ledger-row ${selected === row.id ? "selected" : ""}`}
+                          onClick={() => setSelected(row.id)}
+                        >
+                          <span className="mono">{formatLocalTime(row.occurredAt)}</span>
+                          <span>{kind ? t(kind.labelKey) : row.kindId}</span>
+                          <span className={`num ${kindClass(kind)}`}>
+                            {formatAmount(row, kind, locale)}
+                            {fee > 0 && (
+                              <div className="muted">
+                                {formatMinor(row.counterAmountMinor ?? 0, locale)} / {formatMinor(fee, locale)}
+                              </div>
+                            )}
+                          </span>
+                          <span>
+                            {row.counterAccountId
+                              ? `${accountName(src, t)} → ${accountName(dst, t)}`
+                              : accountName(src, t)}
+                          </span>
+                          <span>
+                            {categoryName(cat, t)}
+                            {feeCat && fee > 0 ? ` / ${categoryName(feeCat, t)}` : ""}
+                          </span>
+                          <span>
+                            {row.tagIds
+                              .map((id) => tags.find((tg) => tg.id === id)?.name)
+                              .filter(Boolean)
+                              .join(", ")}
+                          </span>
+                          <span>{row.note?.slice(0, 40)}</span>
+                        </div>
+                      );
+                    })}
+                  </section>
+                );
+              })}
+            </div>
           )}
         </div>
         {selectedRow && form && (
@@ -419,6 +435,17 @@ function kindClass(kind: KindDto | undefined): string {
   if (kind?.reportBucket === "income") return "in";
   if (kind?.reportBucket === "expense") return "out";
   return "neutral";
+}
+
+function daySums(rows: EntryDto[], kinds: KindDto[]): { expense: number; income: number } {
+  let expense = 0;
+  let income = 0;
+  for (const row of rows) {
+    const kind = kinds.find((k) => k.id === row.kindId);
+    if (kind?.reportBucket === "expense") expense += row.amountMinor;
+    if (kind?.reportBucket === "income") income += row.amountMinor;
+  }
+  return { expense, income };
 }
 
 function formatAmount(row: EntryDto, kind: KindDto | undefined, locale: string): string {

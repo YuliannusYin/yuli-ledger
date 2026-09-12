@@ -200,9 +200,9 @@ textarea {
 }
 
 .kind-btn {
-  flex: 1;
-  min-width: 72px;
+  flex: 0 0 auto;
   height: 28px;
+  padding: 0 10px;
   border: 1px solid var(--line);
   background: transparent;
   border-radius: 2px;
@@ -303,18 +303,59 @@ textarea {
 .list-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   height: 32px;
   padding: 0 8px;
   border: 1px solid transparent;
   border-radius: 2px;
-  cursor: grab;
+  cursor: pointer;
 }
 
 .list-item.active {
   border-color: var(--line);
   background: var(--fill);
+}
+
+.list-item-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.list-item-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.ctx-menu {
+  position: fixed;
+  z-index: 40;
+  min-width: 120px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ctx-menu button {
+  height: 28px;
+  padding: 0 10px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: 2px;
+}
+
+.ctx-menu button:hover:not(:disabled) {
+  background: var(--fill);
+}
+
+.ctx-menu button:disabled {
+  color: var(--muted);
 }
 
 .filters {
@@ -518,11 +559,124 @@ textarea {
 
 .swatch {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   margin-right: 6px;
   vertical-align: middle;
   border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+button.swatch {
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+}
+
+.color-popover {
+  position: fixed;
+  z-index: 30;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+
+.ledger-days {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.ledger-cols {
+  display: grid;
+  grid-template-columns:
+    48px
+    56px
+    minmax(80px, 0.8fr)
+    minmax(96px, 1.1fr)
+    minmax(96px, 1.2fr)
+    minmax(72px, 0.8fr)
+    minmax(80px, 1.4fr);
+  column-gap: 8px;
+  align-items: center;
+}
+
+.ledger-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 8px;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.ledger-head .num,
+.ledger-row .num {
+  text-align: right;
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-card {
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--bg);
+}
+
+.day-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 500;
+}
+
+.day-card-sums {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+
+.ledger-row {
+  min-height: 34px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.day-card > .ledger-row:last-of-type {
+  border-bottom: 0;
+}
+
+.ledger-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ledger-row > span:not(.num) {
+  white-space: nowrap;
+}
+
+.ledger-row:hover {
+  background: color-mix(in srgb, var(--surface) 70%, var(--fill));
+}
+
+.ledger-row.selected {
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
+  background: var(--fill);
 }
 
 .section {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { save } from "@tauri-apps/plugin-dialog";
 import type { AccountDto, CategoryDto, SettingsDto } from "../lib/types";
-import { exportBackupJson, exportEntriesCsv, updateSettings } from "../lib/api";
+import { exportBackupJson, exportEntriesCsv, exportEntriesTxt, updateSettings } from "../lib/api";
 import { accountName, categoryName, mains, subsOf } from "../lib/names";
 import en from "../i18n/en";
 
@@ -45,6 +45,29 @@ export default function SettingsScreen({
     if (!path) return;
     try {
       await exportEntriesCsv({
+        path,
+        fromDate: csvFrom.trim() || null,
+        toDate: csvTo.trim() || null,
+        labels: labels(),
+      });
+      setExportMsg("settings.export.ok");
+    } catch (ex) {
+      setExportErr(
+        typeof ex === "object" && ex && "code" in ex ? String((ex as { code: string }).code) : "error.io",
+      );
+    }
+  }
+
+  async function exportTxt() {
+    setExportMsg(null);
+    setExportErr(null);
+    const path = await save({
+      defaultPath: "yuli-ledger-entries.txt",
+      filters: [{ name: "TXT", extensions: ["txt"] }],
+    });
+    if (!path) return;
+    try {
+      await exportEntriesTxt({
         path,
         fromDate: csvFrom.trim() || null,
         toDate: csvTo.trim() || null,
@@ -149,16 +172,19 @@ export default function SettingsScreen({
       </div>
       <h2>{t("settings.export")}</h2>
       <div className="field">
-        <label>{t("settings.export.csvRange")}</label>
+        <label>{t("settings.export.range")}</label>
         <div className="row">
           <input type="date" value={csvFrom} onChange={(e) => setCsvFrom(e.target.value)} />
           <input type="date" value={csvTo} onChange={(e) => setCsvTo(e.target.value)} />
         </div>
-        <p className="muted">{t("settings.export.csvHint")}</p>
+        <p className="muted">{t("settings.export.rangeHint")}</p>
       </div>
       <div className="row">
         <button type="button" className="btn" onClick={() => void exportCsv()}>
           {t("settings.export.csv")}
+        </button>
+        <button type="button" className="btn" onClick={() => void exportTxt()}>
+          {t("settings.export.txt")}
         </button>
         <button type="button" className="btn" onClick={() => void exportJson()}>
           {t("settings.export.json")}

@@ -61,7 +61,7 @@ First-class management, not a hidden settings dump. All lists come from the data
 
 **Categories**
 
-- Create, rename, reorder **mains** and **subs**; pick a main’s color from the built-in palette
+- Create, rename, reorder **mains** and **subs**; pick a main’s color from the built-in palette (open the palette by clicking the swatch in front of the main)
 - Delete a sub if no entry uses it and it is not `defaultFeeCategoryId`
 - Delete a main if all descendants are unused (children deleted with it)
 
@@ -71,7 +71,7 @@ No bulk recategorize in v1. Occupied rows stay until the user edits or deletes t
 
 The ledger is the chronological book of entries, newest `occurredAt` first. Tie-break: `createdAt` descending, then `id`. It opens listing **every** entry. Filters apply only when the user runs them, uses a preset, or jumps from Reports.
 
-Each row shows enough to scan: occurred at (local), kind label, amount, account(s), category (and fee category when a transfer has a fee), tags, note excerpt.
+Entries are grouped by **local calendar date** of `occurredAt`. Each day is one plate: date plus that day’s expense total (`reportBucket` expense) and income total, then the rows for that day. Each row shows enough to scan: time (hour:minute), kind label, amount, account(s), category (and fee category when a transfer has a fee), tags, note excerpt.
 
 Transfer row pattern: source account → destination account, source amount, destination amount if different, fee if any. Repayment with a repaid account: paying account → repaid account.
 
@@ -171,7 +171,7 @@ Do not treat this as a wireframe or component library.
 3. **Reports** — week / month / year / custom; expense or income side; sections above
 4. **Accounts** — list, create, edit (including note), delete-when-unused
 5. **Categories** — mains and subs, create, rename, delete-when-unused
-6. **Settings (minimal)** — default account, default fee category, UI language, color scheme ([ui.md](ui.md)), path to the database file (read-only display) so backup is obvious, **CSV entry export** (optional local date range) and **JSON backup** (settings, accounts, categories, tags, entries)
+6. **Settings (minimal)** — default account, default fee category, UI language, color scheme ([ui.md](ui.md)), path to the database file (read-only display) so backup is obvious, **CSV and TXT entry export** (optional local date range; TXT is one tab-separated line per entry) and **JSON backup** (settings, accounts, categories, tags, entries)
 
 Navigation is a **left rail** (Record, Ledger, Reports, Accounts, Categories, Settings). Layout, density, and chrome: [ui.md](ui.md).
 

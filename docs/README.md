@@ -43,7 +43,7 @@ These are build and UX choices. They do not change entity shapes in [domain-mode
 - Seed Default account: `openingAt = 1970-01-01T00:00:00Z`, `openingBalanceMinor = 0`, `accountKind = other`. Preset `name` is stored `NULL` until the user renames.
 - v1 does not add an `archived` column. Pickers and ledger filters use every existing account.
 - Creating a main category also inserts one child named Other / 其他 for the active UI language (`presetKey = null`).
-- Account list, main categories, and subs under one main reorder by pointer drag (`sortOrder`).
+- Account list, main categories, and subs under one main reorder via right-click Move up / Move down (`sortOrder`).
 - Charts use visx (point-line, pie, bars) styled with [ui.md](ui.md) tokens.
 - Command `occurredAt` is UTC ISO-8601 with seconds set to `0`. Report range and buckets use `chrono::Local` (not UTC `strftime` as a calendar day).
 - Ledger `expense` filter excludes transfer fees; the report expense side includes them.

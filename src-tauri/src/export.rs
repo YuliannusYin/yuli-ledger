@@ -26,6 +26,20 @@ const CSV_HEADERS: &[&str] = &[
     "csv.id",
 ];
 
+const TXT_HEADERS: &[&str] = &[
+    "csv.occurredAt",
+    "csv.kind",
+    "csv.amount",
+    "csv.counterAmount",
+    "csv.account",
+    "csv.counterAccount",
+    "csv.mainCategory",
+    "csv.subCategory",
+    "csv.feeCategory",
+    "csv.tags",
+    "csv.note",
+];
+
 pub fn write_entries_csv(
     conn: &rusqlite::Connection,
     path: &str,
@@ -34,6 +48,17 @@ pub fn write_entries_csv(
     labels: &HashMap<String, String>,
 ) -> Result<()> {
     let body = build_entries_csv(conn, from_date, to_date, labels)?;
+    write_path(path, body.as_bytes())
+}
+
+pub fn write_entries_txt(
+    conn: &rusqlite::Connection,
+    path: &str,
+    from_date: Option<String>,
+    to_date: Option<String>,
+    labels: &HashMap<String, String>,
+) -> Result<()> {
+    let body = build_entries_txt(conn, from_date, to_date, labels)?;
     write_path(path, body.as_bytes())
 }
 
@@ -62,6 +87,96 @@ pub fn build_entries_csv(
     to_date: Option<String>,
     labels: &HashMap<String, String>,
 ) -> Result<String> {
+    let lines = collect_entry_lines(conn, from_date, to_date, labels)?;
+    let mut out = String::from("\u{FEFF}");
+    out.push_str(
+        &CSV_HEADERS
+            .iter()
+            .map(|k| csv_field(label(labels, k, k)))
+            .collect::<Vec<_>>()
+            .join(","),
+    );
+    out.push('\n');
+    for line in lines {
+        let row = [
+            csv_field(&line.occurred_at),
+            csv_field(&line.kind_id),
+            csv_field(&line.kind),
+            csv_field(&line.amount),
+            csv_field(&line.counter_amount),
+            csv_field(&line.account),
+            csv_field(&line.counter_account),
+            csv_field(&line.main),
+            csv_field(&line.sub),
+            csv_field(&line.fee),
+            csv_field(&line.tags),
+            csv_field(&line.note),
+            csv_field(&line.id),
+        ];
+        out.push_str(&row.join(","));
+        out.push('\n');
+    }
+    Ok(out)
+}
+
+pub fn build_entries_txt(
+    conn: &rusqlite::Connection,
+    from_date: Option<String>,
+    to_date: Option<String>,
+    labels: &HashMap<String, String>,
+) -> Result<String> {
+    let lines = collect_entry_lines(conn, from_date, to_date, labels)?;
+    let mut out = String::from("\u{FEFF}");
+    out.push_str(
+        &TXT_HEADERS
+            .iter()
+            .map(|k| txt_field(label(labels, k, k)))
+            .collect::<Vec<_>>()
+            .join("\t"),
+    );
+    out.push('\n');
+    for line in lines {
+        let row = [
+            txt_field(&line.occurred_at),
+            txt_field(&line.kind),
+            txt_field(&line.amount),
+            txt_field(&line.counter_amount),
+            txt_field(&line.account),
+            txt_field(&line.counter_account),
+            txt_field(&line.main),
+            txt_field(&line.sub),
+            txt_field(&line.fee),
+            txt_field(&line.tags),
+            txt_field(&line.note),
+        ];
+        out.push_str(&row.join("\t"));
+        out.push('\n');
+    }
+    Ok(out)
+}
+
+struct EntryLine {
+    occurred_at: String,
+    kind_id: String,
+    kind: String,
+    amount: String,
+    counter_amount: String,
+    account: String,
+    counter_account: String,
+    main: String,
+    sub: String,
+    fee: String,
+    tags: String,
+    note: String,
+    id: String,
+}
+
+fn collect_entry_lines(
+    conn: &rusqlite::Connection,
+    from_date: Option<String>,
+    to_date: Option<String>,
+    labels: &HashMap<String, String>,
+) -> Result<Vec<EntryLine>> {
     let entries = db::list_entries(
         conn,
         &LedgerFilter {
@@ -81,16 +196,7 @@ pub fn build_entries_csv(
     let account_by: HashMap<String, &AccountDto> = accounts.iter().map(|a| (a.id.clone(), a)).collect();
     let cat_by: HashMap<String, &CategoryDto> = categories.iter().map(|c| (c.id.clone(), c)).collect();
 
-    let mut out = String::from("\u{FEFF}");
-    out.push_str(
-        &CSV_HEADERS
-            .iter()
-            .map(|k| csv_field(label(labels, k, k)))
-            .collect::<Vec<_>>()
-            .join(","),
-    );
-    out.push('\n');
-
+    let mut lines = Vec::with_capacity(entries.len());
     for e in entries {
         let account = account_by.get(&e.account_id).copied();
         let counter = e
@@ -110,29 +216,26 @@ pub fn build_entries_csv(
             .collect::<Vec<_>>()
             .join(";");
         let kind_key = format!("kind.{}", e.kind_id);
-        let row = [
-            csv_field(&time_util::format_local_datetime(&e.occurred_at)?),
-            csv_field(&e.kind_id),
-            csv_field(&label(labels, &kind_key, &e.kind_id)),
-            csv_field(&format_minor_plain(e.amount_minor)),
-            csv_field(
-                &e.counter_amount_minor
-                    .map(format_minor_plain)
-                    .unwrap_or_default(),
-            ),
-            csv_field(&account_label(account, labels)),
-            csv_field(&account_label(counter, labels)),
-            csv_field(&main),
-            csv_field(&sub),
-            csv_field(&fee),
-            csv_field(&tag_cell),
-            csv_field(e.note.as_deref().unwrap_or("")),
-            csv_field(&e.id),
-        ];
-        out.push_str(&row.join(","));
-        out.push('\n');
+        lines.push(EntryLine {
+            occurred_at: time_util::format_local_datetime(&e.occurred_at)?,
+            kind_id: e.kind_id.clone(),
+            kind: label(labels, &kind_key, &e.kind_id).to_string(),
+            amount: format_minor_plain(e.amount_minor),
+            counter_amount: e
+                .counter_amount_minor
+                .map(format_minor_plain)
+                .unwrap_or_default(),
+            account: account_label(account, labels),
+            counter_account: account_label(counter, labels),
+            main,
+            sub,
+            fee,
+            tags: tag_cell,
+            note: e.note.unwrap_or_default(),
+            id: e.id,
+        });
     }
-    Ok(out)
+    Ok(lines)
 }
 
 pub fn build_backup_json(conn: &rusqlite::Connection) -> Result<String> {
@@ -251,6 +354,10 @@ fn csv_field(value: &str) -> String {
     }
 }
 
+fn txt_field(value: &str) -> String {
+    value.replace(['\t', '\n', '\r'], " ")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -329,6 +436,16 @@ mod tests {
             .unwrap();
         assert_eq!(empty.lines().count(), 1);
 
+        let txt = build_entries_txt(&conn, Some("2026-09-09".into()), Some("2026-09-09".into()), &labels())
+            .unwrap();
+        assert!(txt.starts_with('\u{FEFF}'));
+        assert!(txt.contains("Occurred at"));
+        assert!(txt.contains("Expense"));
+        assert!(txt.contains("12.50"));
+        assert!(txt.contains("lunch, \"quoted\""));
+        assert!(!txt.contains("kindId"));
+        assert_eq!(txt.lines().next().unwrap().matches('\t').count(), 10);
+
         let json = build_backup_json(&conn).unwrap();
         assert!(json.contains("yuli-ledger-backup"));
         assert!(json.contains("\"entries\""));
@@ -344,6 +461,17 @@ mod tests {
         )
         .unwrap();
         assert!(out.exists());
+
+        let txt_path = _dir.path().join("out.txt");
+        write_entries_txt(
+            &conn,
+            txt_path.to_str().unwrap(),
+            None,
+            None,
+            &labels(),
+        )
+        .unwrap();
+        assert!(txt_path.exists());
 
         let _ = OPENING_EPOCH;
     }

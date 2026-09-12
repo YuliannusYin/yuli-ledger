@@ -65,7 +65,7 @@ export default function RecordScreen({
   }
 
   return (
-    <form className="surface" style={{ maxWidth: 720, padding: 16 }} onSubmit={(e) => void onSubmit(e)}>
+    <form className="surface" style={{ maxWidth: 480, padding: 12 }} onSubmit={(e) => void onSubmit(e)}>
       <h1>{t("nav.record")}</h1>
       <EntryForm
         form={form}

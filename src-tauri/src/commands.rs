@@ -223,6 +223,18 @@ pub fn export_entries_csv(
 }
 
 #[tauri::command]
+pub fn export_entries_txt(
+    state: State<DbState>,
+    path: String,
+    from_date: Option<String>,
+    to_date: Option<String>,
+    labels: HashMap<String, String>,
+) -> Result<()> {
+    let conn = lock(&state)?;
+    export::write_entries_txt(&conn, &path, from_date, to_date, &labels)
+}
+
+#[tauri::command]
 pub fn export_backup_json(state: State<DbState>, path: String) -> Result<()> {
     let conn = lock(&state)?;
     export::write_backup_json(&conn, &path)

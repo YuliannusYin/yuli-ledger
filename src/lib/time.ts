@@ -90,6 +90,33 @@ export function formatLocalDateTime(iso: string, locale: string): string {
   }).format(d);
 }
 
+export function formatLocalTime(iso: string): string {
+  const p = fromUtcIso(iso);
+  return `${pad(p.hour)}:${pad(p.minute)}`;
+}
+
+export function localDateKey(iso: string): string {
+  return partsToDateInput(fromUtcIso(iso));
+}
+
+export function groupByLocalDate<T extends { occurredAt: string }>(
+  rows: T[],
+): { date: string; rows: T[] }[] {
+  const map = new Map<string, T[]>();
+  const order: string[] = [];
+  for (const row of rows) {
+    const date = localDateKey(row.occurredAt);
+    const bucket = map.get(date);
+    if (bucket) {
+      bucket.push(row);
+    } else {
+      map.set(date, [row]);
+      order.push(date);
+    }
+  }
+  return order.map((date) => ({ date, rows: map.get(date)! }));
+}
+
 export function formatLocalDate(isoOrDate: string, locale: string): string {
   const d = isoOrDate.length === 10 ? new Date(`${isoOrDate}T00:00:00`) : new Date(isoOrDate);
   return new Intl.DateTimeFormat(locale === "zh-Hans" ? "zh-CN" : "en-US", {

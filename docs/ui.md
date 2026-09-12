@@ -114,16 +114,16 @@ Light theme hex (dark theme: same hue, lift lightness so slices stay distinct on
 | `preset.category.transfer` | `#57534e` |
 | `preset.category.finance` | `#1e3a5f` |
 
-User-created mains: assign the next unused color from the **64-color built-in palette** (the 13 seed colors, then overflow `#6b7280`, `#854d0e`, `#115e59`, `#6b21a8`, `#9a3412`, `#164e63`, then further muted hues). Persist `colorHex` so slices do not shuffle. The Categories editor shows an 8×8 swatch grid; clicking a swatch writes that hex immediately. Only palette colors are allowed; duplicates across mains are allowed. Subs still store `null` and inherit the parent hue.
+User-created mains: assign the next unused color from the **96-color built-in palette** (the 13 seed colors, then overflow `#6b7280`, `#854d0e`, `#115e59`, `#6b21a8`, `#9a3412`, `#164e63`, then further muted hues). Persist `colorHex` so slices do not shuffle. The Categories list shows a swatch before each main; clicking that swatch opens an 8-column palette popover and writes the hex immediately. Only palette colors are allowed; duplicates across mains are allowed. Subs still store `null` and inherit the parent hue.
 
 ## Recording (speed)
 
 Job: under a minute, preferably **one glance + keyboard**.
 
-- Single column form on `--surface`, not stepped screens. Record form about 720px wide, left-aligned.
+- Single column form on `--surface`, not stepped screens. Record form about 480px wide, left-aligned.
 - **Amount** is the first and largest field (mono, ~28–32px). Transfer: source and destination amounts on **one row**; destination defaults to the source value; if they differ, show fee on the next line in `--accent-out`.
 - **Occurred at:** native `date` + `time` (minute precision) plus a **Now** control that fills the current local minute. After save, keep the last recorded time (do not auto-reset to now).
-- **Kind:** horizontal set of equal hairline buttons generated from the kind registry (must grow past two). Selected = zinc fill + label, not a colorful rainbow per kind.
+- **Kind:** horizontal set of compact hairline buttons (content width, not stretched across the row) generated from the kind registry (must grow past two). Selected = zinc fill + label, not a colorful rainbow per kind.
 - Account (and counterparty when the kind needs it) on one row; category **main | sub** two selects on one row, not a deep tree widget. Tags, note: compact rows below.
 - Primary action: **Save** (`Ctrl+Enter`), full width of the Record form. After a successful save, **stay on Record**, clear amount/note/tags, keep kind/account/category/**time**. Persist that kept configuration in ledger settings so a restart restores it.
 - Validation: inline under the field, zinc + `--danger` text, no modal for ordinary errors.
@@ -131,7 +131,9 @@ Job: under a minute, preferably **one glance + keyboard**.
 
 ## Ledger
 
-- **Table**, not a feed of cards. Columns: time, kind, amount, account(s), category, tags, note excerpt.
+- **Day plates**, not a marketing card feed. Group by local calendar date of `occurredAt` (newest day first). One shared column header above the list; each day is a zinc hairline plate.
+- Plate header: local date on the left; that day’s expense total (`reportBucket` expense, including prepayment) and income total on the right in mono. Transfer and repayment do not enter those two sums.
+- Inner rows: time (hour:minute only), kind, amount, account(s), category, tags, note excerpt.
 - Transfer cells: `Source → Dest` on one line; amount column shows source, and dest/fee if different, in muted mono.
 - Sticky filter bar: period, kind, account, category, tag, note contains. Compact inputs; “this month” and “all” are text controls, not a large calendar hero. Date fields start empty (no time bound) until the user filters.
 - Row hover: slight surface shift. Selected row: hairline inside the row + inspector open.
@@ -153,13 +155,13 @@ Information architecture: [features.md](features.md).
 
 ## Accounts and categories
 
-- **Split list:** left list of accounts or mains; right editor (name, kind, opening balance, opening debt, **note** for accounts; children and color grid for a main). Account current figures on the list and in the editor summary: signed **balance** (gold `--account-balance`) `|` signed **debt** (orange-red `--account-debt`), no extra words.
+- **Split list:** left list of accounts or mains; right editor (name, kind, opening balance, opening debt, **note** for accounts; children for a main). Main color is chosen from a popover opened by the swatch in front of the main, not a permanently expanded grid. Account current figures on the list and in the editor summary: signed **balance** (gold `--account-balance`) `|` signed **debt** (orange-red `--account-debt`), no extra words.
 - Delete: enabled only when rules in [features.md](features.md) allow; otherwise disabled with a one-line reason (e.g. “Used by 12 entries”).
-- Reorder: simple up/down or drag; visual = hairline grab, not colorful chips.
+- Reorder: right-click a row for **Move up** / **Move down** (accounts, mains, and subs). First/last row disables the blocked direction. Left-click still selects.
 
 ## Settings
 
-Quiet list: language, color scheme, default account, default fee category, **read-only database path** (copy button), **export** (CSV entries with optional date range; JSON full backup). No account-cloud banners. No import.
+Quiet list: language, color scheme, default account, default fee category, **read-only database path** (copy button), **export** (CSV entries and **TXT entries**, same optional date range; JSON full backup). No account-cloud banners. No import.
 
 ## Keyboard (v1)
 
