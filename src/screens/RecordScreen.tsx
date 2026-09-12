@@ -1,8 +1,8 @@
 import { useRef, useState, type FormEvent, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import type { AccountDto, CategoryDto, KindDto, SettingsDto } from "../lib/types";
-import { createEntry } from "../lib/api";
-import { localParts } from "../lib/time";
+import { createEntry, updateSettings } from "../lib/api";
+import { toUtcIso } from "../lib/time";
 import EntryForm, { emptyForm, toWrite, type FormState } from "../components/EntryForm";
 
 export default function RecordScreen({
@@ -21,9 +21,7 @@ export default function RecordScreen({
   onSaved: () => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const [form, setForm] = useState<FormState>(() =>
-    emptyForm(kinds, accounts, categories, settings.defaultAccountId, settings.defaultFeeCategoryId),
-  );
+  const [form, setForm] = useState<FormState>(() => emptyForm(kinds, accounts, categories, settings));
   const [error, setError] = useState<string | null>(null);
   const saving = useRef(false);
 
@@ -39,14 +37,21 @@ export default function RecordScreen({
     saving.current = true;
     try {
       await createEntry(write);
-      const now = localParts();
+      await updateSettings({
+        ...settings,
+        lastKindId: form.kindId,
+        lastAccountId: form.accountId || null,
+        lastCounterAccountId: form.counterAccountId || null,
+        lastCategoryId: form.categoryId || null,
+        lastFeeCategoryId: form.feeCategoryId || null,
+        lastOccurredAt: toUtcIso(form),
+      });
       setForm({
         ...form,
         amount: "",
         destAmount: "",
         tags: [],
         note: "",
-        ...now,
       });
       setError(null);
       await onSaved();
@@ -60,7 +65,7 @@ export default function RecordScreen({
   }
 
   return (
-    <form className="surface" style={{ maxWidth: 560, padding: 16 }} onSubmit={(e) => void onSubmit(e)}>
+    <form className="surface" style={{ maxWidth: 480, padding: 12 }} onSubmit={(e) => void onSubmit(e)}>
       <h1>{t("nav.record")}</h1>
       <EntryForm
         form={form}
@@ -71,7 +76,7 @@ export default function RecordScreen({
         error={error}
         amountRef={amountFocusRef}
       />
-      <button type="submit" className="btn primary">
+      <button type="submit" className="btn primary btn-block">
         {t("action.save")}
       </button>
     </form>

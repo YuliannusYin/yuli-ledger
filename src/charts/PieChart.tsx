@@ -61,7 +61,7 @@ export default function PieChart({
                   textAnchor="middle"
                   dy="0.35em"
                   fill="var(--text)"
-                  fontFamily="IBM Plex Mono"
+                  fontFamily="var(--font-mono)"
                   fontSize={12}
                 >
                   {centerLabel}

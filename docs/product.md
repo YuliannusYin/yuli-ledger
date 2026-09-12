@@ -10,7 +10,7 @@ Only you. There is no multi-user model, no household sharing, no login, and no c
 
 ## Job to be done
 
-In under a minute, record that money moved: how much, when (to the minute), which account(s), classification, optional tags and a note. Later, answer “what happened this month?” without exporting to a spreadsheet first — including “this was not spending” (repayment, prepayment) and “I moved WeChat to the bank” (transfer).
+In under a minute, record that money moved: how much, when (to the minute), which account(s), classification, optional tags and a note. Later, answer “what happened this month?” without exporting to a spreadsheet first — including spending that did not move cash (`prepayment`), “this was not spending” (`repayment`), and “I moved WeChat to the bank” (`transfer`).
 
 ## Principles
 
@@ -18,7 +18,7 @@ In under a minute, record that money moved: how much, when (to the minute), whic
 2. **Kinds stay open.** v1 ships five kinds. The model must accept later kinds without rewriting required entry columns or scattering `if kind == income` through the app.
 3. **Local file is the source of truth.** No network requirement. Backup means copying the database file.
 4. **English is the project language; Chinese is a locale.** Identifiers, kind ids, and source UI strings are English. Simplified Chinese is a translation. User-typed names stay as typed.
-5. **Prefer a thin v1 over a complete finance suite.** Ship recording, ledger, and reports. Leave investments, invoices, bank import, and debt/prepaid *ledgers* for later or never.
+5. **Prefer a thin v1 over a complete finance suite.** Ship recording, ledger, and reports. Leave investments, invoices, bank import, and named-debt *entities* for later or never.
 6. **Derived numbers over cached truth.** Account balances and report totals are computed from opening balances plus posted entries, not a second write path that can drift.
 
 ## v1 scope
@@ -37,7 +37,7 @@ Out (see [roadmap.md](roadmap.md) for later):
 - Phone or web-hosted clients
 - Network, login, sync, or multi-device
 - Import from WeChat, Alipay, or banks
-- Liability remaining balances; prepayment settlement into expense
+- Named debt *entities* and prepayment settlement into expense
 - Full double-entry chart of accounts, multi-currency, budgets, attachments, recurring templates
 
 ## Non-goals

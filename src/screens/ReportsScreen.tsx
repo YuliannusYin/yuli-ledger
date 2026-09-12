@@ -199,14 +199,13 @@ export default function ReportsScreen({
           <p className="muted">
             {t("report.secondary", {
               repayment: formatMinor(report.secondaryRepayment, locale),
-              prepayment: formatMinor(report.secondaryPrepayment, locale),
               volume: formatMinor(report.secondaryTransferVolume, locale),
               fees: formatMinor(report.secondaryTransferFees, locale),
             })}
           </p>
           <div className="section">
             <h2>{t("report.trend")}</h2>
-            <TrendChart points={report.trend} color={color} locale={locale} />
+            <TrendChart points={report.trend} color={color} locale={locale} mode={mode} />
           </div>
           <div className="section">
             <div className="toolbar">
@@ -265,7 +264,7 @@ export default function ReportsScreen({
           {report.comparison && (
             <div className="section">
               <h2>{t("report.comparison")}</h2>
-              <BarChart bars={report.comparison} color={color} locale={locale} />
+              <BarChart bars={report.comparison} color={color} locale={locale} mode={mode} />
             </div>
           )}
           <div className="section">
@@ -280,7 +279,7 @@ export default function ReportsScreen({
                         entryId: row.entryId,
                         fromDate: report.rangeFrom,
                         toDate: report.rangeTo,
-                        kindIds: side === "income" ? ["income"] : ["expense", "transfer"],
+                        kindIds: jumpKindIds(side, kinds),
                       })
                     }
                   >
@@ -301,7 +300,7 @@ export default function ReportsScreen({
                   entryId: report.ranking[0]?.entryId ?? "",
                   fromDate: report.rangeFrom,
                   toDate: report.rangeTo,
-                  kindIds: side === "income" ? ["income"] : ["expense", "transfer"],
+                  kindIds: jumpKindIds(side, kinds),
                 })
               }
             >
@@ -312,4 +311,13 @@ export default function ReportsScreen({
       )}
     </div>
   );
+}
+
+function jumpKindIds(side: string, kinds: KindDto[]): string[] {
+  if (side === "income") {
+    return kinds.filter((k) => k.reportBucket === "income").map((k) => k.id);
+  }
+  return kinds
+    .filter((k) => k.reportBucket === "expense" || k.feeReportBucket === "expense")
+    .map((k) => k.id);
 }

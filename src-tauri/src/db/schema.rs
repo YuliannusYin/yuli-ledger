@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS account (
   name TEXT,
   account_kind TEXT NOT NULL,
   opening_balance_minor INTEGER NOT NULL,
+  opening_debt_minor INTEGER NOT NULL DEFAULT 0,
   opening_at TEXT NOT NULL,
   note TEXT,
   sort_order INTEGER NOT NULL,
@@ -35,11 +36,18 @@ CREATE TABLE IF NOT EXISTS ledger_settings (
   schema_version INTEGER NOT NULL,
   ui_language TEXT,
   color_scheme TEXT,
+  ui_theme TEXT,
   default_fee_category_id TEXT REFERENCES category(id),
   report_mode TEXT,
   report_side TEXT,
   report_custom_from TEXT,
-  report_custom_to TEXT
+  report_custom_to TEXT,
+  last_kind_id TEXT,
+  last_account_id TEXT,
+  last_counter_account_id TEXT,
+  last_category_id TEXT,
+  last_fee_category_id TEXT,
+  last_occurred_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS entry (
@@ -72,3 +80,5 @@ CREATE INDEX IF NOT EXISTS idx_entry_fee_category_id ON entry (fee_category_id);
 CREATE INDEX IF NOT EXISTS idx_entry_kind_id ON entry (kind_id);
 CREATE INDEX IF NOT EXISTS idx_entry_tag_tag ON entry_tag (tag_id);
 "#;
+
+pub const SCHEMA_VERSION: i32 = 3;

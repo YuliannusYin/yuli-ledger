@@ -1,6 +1,6 @@
 # UI and UX
 
-Visual language and interaction for the Windows desktop app. Metrics and field rules stay in [features.md](features.md). This file is the art direction: **cold metal instrument**, compact, light by default with a dark theme.
+Visual language and interaction for the Windows desktop app. Metrics and field rules stay in [features.md](features.md). This file is the art direction: **cold metal instrument** as the default skin, compact, with a user-switchable dark scheme and four additional named skins.
 
 Do not implement Material, Ant Design, Fluent, or “fintech purple on white.” The memorable cue is **zinc plates, hairline rules, tabular figures**.
 
@@ -12,9 +12,9 @@ Yuli Ledger is a tool you sit at, not a consumer store listing. Surfaces look li
 |------|--------|
 | Tone | Industrial / utilitarian, precision instrument |
 | Density | Compact (more rows, tighter form). Recording is one screen, not a wizard. |
-| Theme | Light default; user-switchable dark. Same layout, inverted zinc. Persist with `uiLanguage` in settings as a separate `colorScheme`: `light` \| `dark` \| `system`. |
+| Theme | Two independent axes, persisted in settings. **Skin** `uiTheme`: `metal` \| `claude` \| `vscode` \| `github` \| `tiktok` (null means `metal`). **Scheme** `colorScheme`: `light` \| `dark` \| `system` (null means `system`). Each skin has light and dark token sets. Same layout and density; fonts, radius, and rail contrast may follow the skin. |
 | Motion | 80–160 ms opacity/color only. No bounce, no staggered page-load theatre. |
-| Chrome | Custom thin title bar in the same zinc as the app (Tauri decorations), not a stock Windows white frame fighting the UI. |
+| Chrome | Custom thin title bar in `--titlebar` (Tauri decorations), not a stock Windows white frame fighting the UI. |
 
 ## Anti-patterns
 
@@ -39,15 +39,19 @@ flowchart LR
 - **Record** is its own nav item and the fastest path (`Ctrl+N` focuses Record even from elsewhere).
 - Ledger **inspector:** selecting a row opens a right pane (~320px) for detail/edit/delete. Do not navigate away to a second full page for v1 detail.
 
-Grid: **8px**. Default control height 28–32px. Table row ~32–36px. Corner radius **2–4px** (almost square). Hairline borders `1px`.
+Grid: **8px**. Default control height 28–32px. Table row ~32–36px. Corner radius from `--radius` (Metal **2px**; other skins may be rounder). Hairline borders `1px`.
 
 ## Typography
+
+Metal (default) type:
 
 | Role | Face | Use |
 |------|------|-----|
 | UI (Latin) | **IBM Plex Sans** | Labels, nav, buttons |
-| UI (CJK) | **Noto Sans SC** | Chinese strings at the same size/weight as Plex; do not mix a serif 宋体 into chrome |
+| UI (CJK) | **Noto Sans SC** | Chinese strings at the same size/weight as the Latin UI face; do not mix a serif 宋体 into chrome |
 | Figures | **IBM Plex Mono** | All money and clock-like times; **tabular lining** figures |
+
+Other skins swap `--font-ui` / `--font-mono` (see Built-in skins). CJK remains **Noto Sans SC** on every skin. Amounts stay `font-variant-numeric: tabular-nums`.
 
 Weights: 400 body, 500 labels, 600 only for the focused amount on Record. Tracking slightly open on all-caps nav is allowed; do not use all-caps for body Chinese.
 
@@ -57,7 +61,7 @@ Money in lists: right-aligned mono, two fraction digits, grouping by locale ([i1
 
 Tokens (implement as CSS variables). Names are English; values are the source of truth for v1.
 
-**Light**
+**Light** (Metal)
 
 | Token | Hex | Role |
 |-------|-----|------|
@@ -67,12 +71,15 @@ Tokens (implement as CSS variables). Names are English; values are the source of
 | `--text` | `#18181b` | Primary text |
 | `--muted` | `#71717a` | Secondary |
 | `--accent-in` | `#0e7490` | Income / positive (cyan-700) |
-| `--accent-out` | `#c2410c` | Expense / fee (copper) |
-| `--accent-neutral` | `#52525b` | Transfer / repayment / prepayment amounts |
+| `--accent-out` | `#c2410c` | Expense / fee / prepayment amounts |
+| `--accent-neutral` | `#52525b` | Transfer / repayment amounts |
 | `--danger` | `#b91c1c` | Destructive confirm only |
 | `--focus` | `#3f3f46` | Focus ring (zinc, 2px) |
+| `--fill` | `#e4e4e7` | Selected chrome |
+| `--account-balance` | `#c9a227` | Current account balance (gold) |
+| `--account-debt` | `#c2410c` | Current account debt (orange-red) |
 
-**Dark**
+**Dark** (Metal)
 
 | Token | Hex |
 |-------|-----|
@@ -86,8 +93,21 @@ Tokens (implement as CSS variables). Names are English; values are the source of
 | `--accent-neutral` | `#a1a1aa` |
 | `--danger` | `#f87171` |
 | `--focus` | `#d4d4d8` |
+| `--account-balance` | `#e4c15a` |
+| `--account-debt` | `#f97316` |
 
-Trend and comparison series use `--accent-in` / `--accent-out` only. **Composition pie** uses per-category colors stored on the main category (`colorHex`). Subcategory slices use the parent hue at stepped lightness (sibling `sortOrder`). Do not use a random rainbow; use the muted palette below.
+Shared chrome tokens (every skin sets these names):
+
+| Token | Role |
+|-------|------|
+| `--accent` | Brand focus / selected rail hairline (not a substitute for kind labels) |
+| `--radius` | Control and plate corner radius |
+| `--font-ui` / `--font-mono` | UI and figures |
+| `--rail-bg` / `--rail-text` | Nav rail (may contrast with `--bg`) |
+| `--shadow` | Optional surface elevation (Metal: none) |
+| `--titlebar` | Custom window title bar |
+
+Trend and comparison series use `--accent-in` / `--accent-out` only. Trend and comparison charts draw **X/Y ticks** (dates / amounts) and a zinc hover tooltip (`date + amount` in mono). **Composition pie** uses per-category colors stored on the main category (`colorHex`). Subcategory slices use the parent hue at stepped lightness (sibling `sortOrder`). Do not use a random rainbow; use the muted palette below.
 
 ### Category palette (mains)
 
@@ -109,25 +129,42 @@ Light theme hex (dark theme: same hue, lift lightness so slices stay distinct on
 | `preset.category.transfer` | `#57534e` |
 | `preset.category.finance` | `#1e3a5f` |
 
-User-created mains: assign the next unused color from this list, then overflow: `#6b7280`, `#854d0e`, `#115e59`, `#6b21a8`, `#9a3412`, `#164e63`. Persist `colorHex` so slices do not shuffle. v1 may auto-assign only (no color picker).
+User-created mains: assign the next unused color from the **96-color built-in palette** (the 13 seed colors, then overflow `#6b7280`, `#854d0e`, `#115e59`, `#6b21a8`, `#9a3412`, `#164e63`, then further muted hues). Persist `colorHex` so slices do not shuffle. The Categories list shows a swatch before each main; clicking that swatch opens an 8-column palette popover and writes the hex immediately. Only palette colors are allowed; duplicates across mains are allowed. Subs still store `null` and inherit the parent hue.
+
+## Built-in skins
+
+Palettes are **inspired by** those products (no official logos). Layout, nav structure, and Record density do not change. Apply with `html[data-skin][data-theme]`.
+
+| Skin | `uiTheme` | Latin UI / mono | Radius | Light direction | Dark direction |
+|------|-----------|-----------------|--------|-----------------|----------------|
+| Metal | `metal` | IBM Plex Sans / Mono | 2px | Existing zinc tables above | Existing zinc tables above |
+| Claude | `claude` | Source Sans 3 / Source Code Pro | 4px | Warm paper `#faf9f5`, terracotta `#d97757` | Warm black `#1f1e1d`, same terracotta |
+| VSCode | `vscode` | Segoe UI / Cascadia Code | 2px | Light+ white, sidebar `#f3f3f3`, `#007acc` | Dark+ `#1e1e1e`, sidebar `#252526`, `#007acc` |
+| GitHub | `github` | Mona Sans / IBM Plex Mono | 6px | Primer light, income green / expense red | Primer dark `#0d1117` / `#161b22` |
+| TikTok | `tiktok` | Outfit / IBM Plex Mono | 8px | Light gray, pink `#fe2c55` (expense darkened for contrast) | Black `#000` / `#121212`, pink + cyan `#25f4ee` |
+
+Income/expense still use `--accent-in` / `--accent-out` plus kind label and sign. Category pie colors stay on `colorHex`.
 
 ## Recording (speed)
 
 Job: under a minute, preferably **one glance + keyboard**.
 
-- Single column form on `--surface`, not stepped screens.
-- **Amount** is the first and largest field (mono, ~28–32px). Transfer: source amount first; destination amount on the next row, defaulting to the same value; if they differ, show fee on a third row in `--accent-out`.
-- **Kind:** horizontal set of equal hairline buttons generated from the kind registry (must grow past two). Selected = zinc fill + label, not a colorful rainbow per kind.
-- Account, category (main then sub), tags, note: compact rows. Category: two selects, not a deep tree widget.
-- Primary action: **Save** (`Ctrl+Enter`). After a successful save, **stay on Record**, clear amount/note/tags, keep kind/account/time (time may snap to now). That is the daily loop.
+- Single column form on `--surface`, not stepped screens. Record form about 480px wide, left-aligned.
+- **Amount** is the first and largest field (mono, ~28–32px). Transfer: source and destination amounts on **one row**; destination defaults to the source value; if they differ, show fee on the next line in `--accent-out`.
+- **Occurred at:** native `date` + `time` (minute precision) plus a **Now** control that fills the current local minute. After save, keep the last recorded time (do not auto-reset to now).
+- **Kind:** horizontal set of compact hairline buttons (content width, not stretched across the row) generated from the kind registry (must grow past two). Selected = zinc fill + label, not a colorful rainbow per kind.
+- Account (and counterparty when the kind needs it) on one row; category **main | sub** two selects on one row, not a deep tree widget. Tags, note: compact rows below.
+- Primary action: **Save** (`Ctrl+Enter`), full width of the Record form. After a successful save, **stay on Record**, clear amount/note/tags, keep kind/account/category/**time**. Persist that kept configuration in ledger settings so a restart restores it.
 - Validation: inline under the field, zinc + `--danger` text, no modal for ordinary errors.
 - Delete is not on this screen (edit/delete from ledger inspector).
 
 ## Ledger
 
-- **Table**, not a feed of cards. Columns: time, kind, amount, account(s), category, tags, note excerpt.
+- **Day plates**, not a marketing card feed. Group by local calendar date of `occurredAt` (newest day first). One shared column header above the list; each day is a zinc hairline plate.
+- Plate header: local date on the left; that day’s expense total (`reportBucket` expense, including prepayment) and income total on the right in mono. Transfer and repayment do not enter those two sums.
+- Inner rows: time (hour:minute only), kind, amount, account(s), category, tags, note excerpt.
 - Transfer cells: `Source → Dest` on one line; amount column shows source, and dest/fee if different, in muted mono.
-- Sticky filter bar: period, kind, account, category, tag, note contains. Compact inputs; “this month” is a text control, not a large calendar hero.
+- Sticky filter bar: period, kind, account, category, tag, note contains. Compact inputs; “this month” and “all” are text controls, not a large calendar hero. Date fields start empty (no time bound) until the user filters.
 - Row hover: slight surface shift. Selected row: hairline inside the row + inspector open.
 - Empty: one muted sentence + control to go to Record. No illustration.
 
@@ -138,22 +175,22 @@ Information architecture: [features.md](features.md).
 - One working column, not a stack of rounded marketing cards.
 - Top: hairline **tabs** (Week, Month, Year, Custom) + prev/next or date pair + **Expense | Income** segmented control.
 - **Figures first** (mono).
-- **Trend:** point-line (stroke 1.5–2px, small square or circle marks, **no** filled area).
+- **Trend:** point-line (stroke 1.5–2px, small square or circle marks, **no** filled area). Draw X (dates) and Y (amounts) ticks; hover shows that bucket’s date and amount in mono.
 - **Composition:** 2D pie + table (swatch, name, amount, percent). Pie hole optional (donut is allowed if the center shows the side total in mono); no 3D, no slice explode.
-- **Comparison:** eight zinc bars, current period outlined; fill `--accent-out` or `--accent-in` by side.
+- **Comparison:** eight zinc bars, current period outlined; fill `--accent-out` or `--accent-in` by side. Same X/Y ticks and hover as the trend chart.
 - **Ranking:** ledger-like table.
-- Secondary repayment / prepayment / transfer volume: one muted line.
+- Secondary repayment / transfer volume / fees: one muted line.
 - Click a ranking row: Ledger + inspector.
 
 ## Accounts and categories
 
-- **Split list:** left list of accounts or mains; right editor (name, kind, opening, **note** for accounts; children for a main).
+- **Split list:** left list of accounts or mains; right editor (name, kind, opening balance, opening debt, **note** for accounts; children for a main). Main color is chosen from a popover opened by the swatch in front of the main, not a permanently expanded grid. Account current figures on the list and in the editor summary: signed **balance** (gold `--account-balance`) `|` signed **debt** (orange-red `--account-debt`), no extra words.
 - Delete: enabled only when rules in [features.md](features.md) allow; otherwise disabled with a one-line reason (e.g. “Used by 12 entries”).
-- Reorder: simple up/down or drag; visual = hairline grab, not colorful chips.
+- Reorder: right-click a row for **Move up** / **Move down** (accounts, mains, and subs). First/last row disables the blocked direction. Left-click still selects.
 
 ## Settings
 
-Quiet list: language, color scheme, default account, default fee category, **read-only database path** (copy button). No account-cloud banners.
+Quiet list: language, **theme (five preview cards)**, color scheme, default account, default fee category, **read-only database path** (copy button), **export** (CSV entries and **TXT entries**, same optional date range; JSON full backup). No account-cloud banners. No import.
 
 ## Keyboard (v1)
 
@@ -176,7 +213,7 @@ Windows conventions: `Ctrl`, not `Cmd`.
 
 ## Implementation notes (still no app code)
 
-- Tokens in one stylesheet (or equivalent); themes swap the same names.
+- Tokens in one stylesheet (or equivalent); skins and schemes swap the same names via `data-skin` and `data-theme`.
 - Self-authored components. If a library is used later, restyle it to these tokens until it does not look like the library demo.
 - Charts: a small library is allowed if it can render point-line, pie, and bars in these tokens without default theme chrome.
 

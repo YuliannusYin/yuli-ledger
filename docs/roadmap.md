@@ -11,7 +11,7 @@ You can run a Windows desktop build (Tauri) that:
 - Transfer: two accounts, destination amount, optional fee on the same row (WeChat → bank is this kind)
 - Lists those entries as a ledger with the filters in [features.md](features.md)
 - Shows reports per [features.md](features.md): week / month / year / custom; point-line trend; pie + table; 8-period comparison bars; ranking
-- Switches UI language between `en` and `zh-Hans`, and color scheme light/dark/system
+- Switches UI language between `en` and `zh-Hans`, named theme (`metal` / `claude` / `vscode` / `github` / `tiktok`), and color scheme light/dark/system
 - UI follows [ui.md](ui.md) (zinc, compact Record loop)
 - Stores everything in `%LOCALAPPDATA%\YuliLedger\ledger.sqlite` and shows that path for backup
 - Can be built into an **NSIS installer** and a **portable folder**; both open a desktop window, not a browser
@@ -23,7 +23,7 @@ v1 is **not** done when the kind registry exists only on paper; the registry mus
 - Phone, web hosting, LAN sync, or any multi-device story
 - Network features (login, telemetry, required updater)
 - WeChat / Alipay / bank **import** (manual `transfer` is in)
-- Liability remaining balances; prepaid-asset ledger; **settlement** of prepayment into expense
+- Liability remaining **entities**; prepaid-asset ledger; **settlement** of prepayment into expense. Per-account derived **debt** is in v1.
 - A dedicated WeChat-withdrawal kind (use `transfer`)
 - Multi-currency, budgets, attachments, recurring templates
 - Soft delete, trash, or audit log UI
@@ -34,8 +34,8 @@ v1 is **not** done when the kind registry exists only on paper; the registry mus
 
 Order can change; dependencies cannot.
 
-1. **Quality of life** — CSV export, more filters, tag report, recurring drafts, attachments.
-2. **Named debts** — remaining balance on a liability; `repayment` payload points at it; still `reportBucket: none`.
+1. **Quality of life** — more filters, tag report, recurring drafts, attachments. (CSV/TXT export and JSON backup are in Settings.)
+2. **Named debts** — a dedicated liability entity beyond the per-account derived debt number; `repayment` payload may point at it; still `reportBucket: none`.
 3. **Prepayment settlement** — consume a prepayment into `expense` (or a settlement kind) **without** moving cash a second time.
 4. **Budgets** — sit on categories and time ranges; they must not alter posted entries.
 5. **Extra currencies** — ledger-level or per-account; this is a deliberate schema project, not a column sneak-in.

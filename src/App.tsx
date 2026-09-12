@@ -9,13 +9,9 @@ import AccountsScreen from "./screens/AccountsScreen";
 import CategoriesScreen from "./screens/CategoriesScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import { getBootstrap } from "./lib/api";
+import { applyAppearance, resolvedTheme } from "./lib/themes";
 import { SCREENS, type BootstrapDto, type LedgerJump, type ScreenId } from "./lib/types";
 import i18n from "./i18n";
-
-function resolvedTheme(scheme: string | null): "light" | "dark" {
-  if (scheme === "light" || scheme === "dark") return scheme;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
 
 export default function App() {
   const { t } = useTranslation();
@@ -32,7 +28,7 @@ export default function App() {
     const lang = boot.resolvedLanguage === "zh-Hans" ? "zh-Hans" : "en";
     if (i18n.language !== lang) await i18n.changeLanguage(lang);
     document.documentElement.lang = lang === "zh-Hans" ? "zh-Hans" : "en";
-    document.documentElement.dataset.theme = resolvedTheme(boot.settings.colorScheme);
+    applyAppearance(boot.settings.colorScheme, boot.settings.uiTheme);
   }, []);
 
   useEffect(() => {
@@ -42,13 +38,13 @@ export default function App() {
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onMq = () => {
-      if (data?.settings.colorScheme === "system" || !data?.settings.colorScheme) {
-        document.documentElement.dataset.theme = resolvedTheme("system");
+      if (data && (data.settings.colorScheme === "system" || !data.settings.colorScheme)) {
+        applyAppearance("system", data.settings.uiTheme);
       }
     };
     mq.addEventListener("change", onMq);
     return () => mq.removeEventListener("change", onMq);
-  }, [data?.settings.colorScheme]);
+  }, [data?.settings.colorScheme, data?.settings.uiTheme]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -106,15 +102,17 @@ export default function App() {
           onToggle={() => setCollapsed((v) => !v)}
         />
         <main className="main">
-          {screen === "record" && (
-            <RecordScreen
-              kinds={data.kinds}
-              accounts={data.accounts}
-              categories={data.categories}
-              settings={data.settings}
-              amountFocusRef={amountRef}
-              onSaved={reload}
-            />
+          {data && (
+            <div hidden={screen !== "record"}>
+              <RecordScreen
+                kinds={data.kinds}
+                accounts={data.accounts}
+                categories={data.categories}
+                settings={data.settings}
+                amountFocusRef={amountRef}
+                onSaved={reload}
+              />
+            </div>
           )}
           {screen === "ledger" && (
             <LedgerScreen
@@ -152,7 +150,12 @@ export default function App() {
             />
           )}
           {screen === "categories" && (
-            <CategoriesScreen categories={data.categories} locale={locale} onChanged={reload} />
+            <CategoriesScreen
+              categories={data.categories}
+              palette={data.categoryPalette}
+              locale={locale}
+              onChanged={reload}
+            />
           )}
           {screen === "settings" && (
             <SettingsScreen

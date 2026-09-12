@@ -1,4 +1,4 @@
-use crate::kinds::registry::{self, BalanceEffect};
+use crate::kinds::registry::{self, BalanceEffect, DebtEffect};
 use crate::models::EntryRow;
 
 pub fn balance_for_account(
@@ -29,6 +29,39 @@ pub fn balance_for_account(
                 }
             }
             BalanceEffect::None | BalanceEffect::Increase | BalanceEffect::Decrease => {}
+        }
+    }
+    total
+}
+
+pub fn debt_for_account(
+    opening_debt_minor: i64,
+    opening_at: &str,
+    account_id: &str,
+    entries: &[EntryRow],
+) -> i64 {
+    let mut total = opening_debt_minor;
+    for e in entries {
+        if e.occurred_at.as_str() < opening_at {
+            continue;
+        }
+        match registry::debt_primary_or_none(&e.kind_id) {
+            DebtEffect::Increase if e.account_id == account_id => {
+                total += e.amount_minor;
+            }
+            DebtEffect::Decrease if e.account_id == account_id => {
+                total -= e.amount_minor;
+            }
+            _ => {}
+        }
+        match registry::debt_counter_or_none(&e.kind_id) {
+            DebtEffect::Increase if e.counter_account_id.as_deref() == Some(account_id) => {
+                total += e.amount_minor;
+            }
+            DebtEffect::Decrease if e.counter_account_id.as_deref() == Some(account_id) => {
+                total -= e.amount_minor;
+            }
+            _ => {}
         }
     }
     total
@@ -75,11 +108,37 @@ mod tests {
                 "2026-01-04T00:00:00Z",
             ),
             row("repayment", 1000, "a", None, "2026-01-05T00:00:00Z"),
+            row("prepayment", 2000, "a", None, "2026-01-06T00:00:00Z"),
         ];
         let a = balance_for_account(1000, "1970-01-01T00:00:00Z", "a", &entries);
         let b = balance_for_account(0, "1970-01-01T00:00:00Z", "b", &entries);
         assert_eq!(a, 1000 + 10000 - 3000 - 5000 - 1000);
         assert_eq!(b, 4900);
+    }
+
+    #[test]
+    fn debt_is_independent_of_balance() {
+        let entries = vec![
+            row("prepayment", 2000, "a", None, "2026-01-02T00:00:00Z"),
+            row("repayment", 700, "cash", Some(("a", 0)), "2026-01-03T00:00:00Z"),
+            row("repayment", 300, "cash", None, "2026-01-04T00:00:00Z"),
+            row("expense", 50, "a", None, "2026-01-05T00:00:00Z"),
+        ];
+        let a_bal = balance_for_account(5000, "1970-01-01T00:00:00Z", "a", &entries);
+        let cash_bal = balance_for_account(8000, "1970-01-01T00:00:00Z", "cash", &entries);
+        let a_debt = debt_for_account(1000, "1970-01-01T00:00:00Z", "a", &entries);
+        let cash_debt = debt_for_account(0, "1970-01-01T00:00:00Z", "cash", &entries);
+        assert_eq!(a_bal, 5000 - 50);
+        assert_eq!(cash_bal, 8000 - 700 - 300);
+        assert_eq!(a_debt, 1000 + 2000 - 700);
+        assert_eq!(cash_debt, 0);
+    }
+
+    #[test]
+    fn debt_opening_at_excludes_earlier() {
+        let entries = vec![row("prepayment", 2000, "a", None, "2026-01-01T00:00:00Z")];
+        let debt = debt_for_account(0, "2026-01-02T00:00:00Z", "a", &entries);
+        assert_eq!(debt, 0);
     }
 
     #[test]

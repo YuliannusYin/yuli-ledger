@@ -4,7 +4,7 @@ Target runtime: **one Windows desktop process**, **no server**, **no network req
 
 **Developers** still install Node.js and Rust to *build* it. **You, using the finished app**, do not.
 
-Product constraints: [product.md](product.md). Data shape: [domain-model.md](domain-model.md). Visual language: [ui.md](ui.md) (zinc, compact, IBM Plex / Noto Sans SC). Do not pick Ant Design / MUI defaults.
+Product constraints: [product.md](product.md). Data shape: [domain-model.md](domain-model.md). Visual language: [ui.md](ui.md) (Metal zinc default, compact Record; named skins swap tokens). Do not pick Ant Design / MUI defaults.
 
 ## Stack
 
@@ -61,9 +61,9 @@ Use the Windows **local** app-data directory (does not roam):
 
 Tauri equivalent: `app_local_data_dir` plus a fixed file name. Create the directory on first run.
 
-Backup and restore for v1: **copy that file** while the app is closed (or after a flush). Settings should show the absolute path. Do not invent a cloud backup channel.
+Backup and restore: **copy that file** while the app is closed (or after a flush). Settings should show the absolute path. Settings also offer **CSV and TXT entry export** and a **JSON backup** of ledger tables (not an import path). Do not invent a cloud backup channel.
 
-Optional later: `VACUUM`, export JSON; not required to start.
+Optional later: `VACUUM`; JSON **import**.
 
 ### SQLite notes
 

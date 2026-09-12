@@ -1,9 +1,17 @@
 import { useMemo, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import type { AccountDto, CategoryDto, EntryWrite, KindDto } from "../lib/types";
+import type { AccountDto, CategoryDto, EntryWrite, KindDto, SettingsDto } from "../lib/types";
 import { parseCny } from "../lib/money";
 import { accountName, categoryName, mains, subsOf } from "../lib/names";
-import { fromUtcIso, localParts, toUtcIso } from "../lib/time";
+import {
+  applyDateInput,
+  applyTimeInput,
+  fromUtcIso,
+  localParts,
+  partsToDateInput,
+  partsToTimeInput,
+  toUtcIso,
+} from "../lib/time";
 import TagInput from "./TagInput";
 
 export type FormState = {
@@ -24,29 +32,55 @@ export type FormState = {
   note: string;
 };
 
+function knownId(ids: string[], value: string | null | undefined, fallback: string): string {
+  if (value && ids.includes(value)) return value;
+  return fallback;
+}
+
+function draftTime(iso: string | null | undefined) {
+  if (!iso) return localParts();
+  const parts = fromUtcIso(iso);
+  if (!Number.isFinite(parts.year) || parts.year < 1970) return localParts();
+  return parts;
+}
+
 export function emptyForm(
   kinds: KindDto[],
   accounts: AccountDto[],
   categories: CategoryDto[],
-  defaultAccountId: string,
-  defaultFeeCategoryId: string | null,
+  settings: SettingsDto,
   kindId?: string,
 ): FormState {
-  const now = localParts();
-  const kind = kindId ?? kinds[0]?.id ?? "expense";
+  const accountIds = accounts.map((a) => a.id);
+  const kind = kindId ?? knownId(kinds.map((k) => k.id), settings.lastKindId, kinds[0]?.id ?? "expense");
+  const accountId = knownId(
+    accountIds,
+    settings.lastAccountId,
+    settings.defaultAccountId || accounts[0]?.id || "",
+  );
+  const counterFallback = accounts.find((a) => a.id !== accountId)?.id ?? accounts[0]?.id ?? "";
+  const lastCat = categories.find((c) => c.id === settings.lastCategoryId && c.parentId);
   const mainList = mains(categories);
-  const main = mainList[0];
+  const main = lastCat
+    ? categories.find((c) => c.id === lastCat.parentId) ?? mainList[0]
+    : mainList[0];
   const subs = main ? subsOf(categories, main.id) : [];
+  const categoryId = lastCat?.id ?? subs[0]?.id ?? "";
+  const feeId = knownId(
+    categories.filter((c) => c.parentId).map((c) => c.id),
+    settings.lastFeeCategoryId ?? settings.defaultFeeCategoryId,
+    settings.defaultFeeCategoryId ?? "",
+  );
   return {
     kindId: kind,
     amount: "",
     destAmount: "",
-    ...now,
-    accountId: defaultAccountId || accounts[0]?.id || "",
-    counterAccountId: accounts.find((a) => a.id !== defaultAccountId)?.id ?? accounts[0]?.id ?? "",
+    ...draftTime(settings.lastOccurredAt),
+    accountId,
+    counterAccountId: knownId(accountIds, settings.lastCounterAccountId, counterFallback),
     mainId: main?.id ?? "",
-    categoryId: subs[0]?.id ?? "",
-    feeCategoryId: defaultFeeCategoryId ?? "",
+    categoryId,
+    feeCategoryId: feeId,
     tags: [],
     note: "",
   };
@@ -77,37 +111,46 @@ export function toWrite(form: FormState, kind: KindDto | undefined): { write?: E
   const amountMinor = parseCny(form.amount);
   if (amountMinor == null || amountMinor <= 0) return { error: "error.amountInvalid" };
   const occurredAt = toUtcIso(form);
-  if (!kind?.counterpartyRequired) {
+  const base = {
+    kindId: form.kindId,
+    amountMinor,
+    occurredAt,
+    accountId: form.accountId,
+    categoryId: form.categoryId,
+    note: form.note.trim() || null,
+    tagNames: form.tags,
+  };
+  if (kind?.counterAmountRequired) {
+    const dest = parseCny(form.destAmount || form.amount);
+    if (dest == null || dest <= 0) return { error: "error.counterAmountInvalid" };
+    const fee = amountMinor - dest;
     return {
       write: {
-        kindId: form.kindId,
-        amountMinor,
-        occurredAt,
-        accountId: form.accountId,
-        counterAccountId: null,
-        counterAmountMinor: null,
-        categoryId: form.categoryId,
-        feeCategoryId: null,
-        note: form.note.trim() || null,
-        tagNames: form.tags,
+        ...base,
+        counterAccountId: form.counterAccountId,
+        counterAmountMinor: dest,
+        feeCategoryId: fee > 0 ? form.feeCategoryId || null : null,
       },
     };
   }
-  const dest = parseCny(form.destAmount || form.amount);
-  if (dest == null || dest <= 0) return { error: "error.counterAmountInvalid" };
-  const fee = amountMinor - dest;
+  if (kind?.counterAccountRequired) {
+    if (!form.counterAccountId) return { error: "error.counterAccountRequired" };
+    if (form.counterAccountId === form.accountId) return { error: "error.accountsMustDiffer" };
+    return {
+      write: {
+        ...base,
+        counterAccountId: form.counterAccountId,
+        counterAmountMinor: null,
+        feeCategoryId: null,
+      },
+    };
+  }
   return {
     write: {
-      kindId: form.kindId,
-      amountMinor,
-      occurredAt,
-      accountId: form.accountId,
-      counterAccountId: form.counterAccountId,
-      counterAmountMinor: dest,
-      categoryId: form.categoryId,
-      feeCategoryId: fee > 0 ? form.feeCategoryId || null : null,
-      note: form.note.trim() || null,
-      tagNames: form.tags,
+      ...base,
+      counterAccountId: null,
+      counterAmountMinor: null,
+      feeCategoryId: null,
     },
   };
 }
@@ -137,6 +180,8 @@ export default function EntryForm({
   const srcAmt = parseCny(form.amount);
   const dstAmt = parseCny(form.destAmount || form.amount);
   const fee = srcAmt != null && dstAmt != null ? srcAmt - dstAmt : 0;
+  const accountLabel = kind?.primaryAccountLabelKey ? t(kind.primaryAccountLabelKey) : t("field.account");
+  const counterLabel = kind?.counterAccountLabelKey ? t(kind.counterAccountLabelKey) : t("field.destAccount");
 
   const feeSubs = useMemo(() => {
     const feeCat = categories.find((c) => c.id === form.feeCategoryId);
@@ -162,27 +207,27 @@ export default function EntryForm({
         ))}
       </div>
       {kind?.hintKey && <p className="hint">{t(kind.hintKey)}</p>}
-      <div className="field">
-        <label>{kind?.counterpartyRequired ? t("field.sourceAmount") : t("field.amount")}</label>
-        <input
-          ref={amountRef}
-          className="amount-input mono"
-          value={form.amount}
-          onChange={(e) => {
-            const amount = e.target.value;
-            setForm({
-              ...form,
-              amount,
-              destAmount:
-                kind?.counterpartyRequired && (!form.destAmount || form.destAmount === form.amount)
-                  ? amount
-                  : form.destAmount,
-            });
-          }}
-        />
-      </div>
-      {kind?.counterpartyRequired && (
-        <>
+      <div className="row">
+        <div className="field">
+          <label>{kind?.counterAmountRequired ? t("field.sourceAmount") : t("field.amount")}</label>
+          <input
+            ref={amountRef}
+            className="amount-input mono"
+            value={form.amount}
+            onChange={(e) => {
+              const amount = e.target.value;
+              setForm({
+                ...form,
+                amount,
+                destAmount:
+                  kind?.counterAmountRequired && (!form.destAmount || form.destAmount === form.amount)
+                    ? amount
+                    : form.destAmount,
+              });
+            }}
+          />
+        </div>
+        {kind?.counterAmountRequired && (
           <div className="field">
             <label>{t("field.destAmount")}</label>
             <input
@@ -191,64 +236,40 @@ export default function EntryForm({
               onChange={(e) => setForm({ ...form, destAmount: e.target.value })}
             />
           </div>
-          {fee > 0 && (
-            <p className="muted out mono">
-              {t("field.fee")}: {(fee / 100).toFixed(2)}
-            </p>
-          )}
-        </>
+        )}
+      </div>
+      {kind?.counterAmountRequired && fee > 0 && (
+        <p className="muted out mono">
+          {t("field.fee")}: {(fee / 100).toFixed(2)}
+        </p>
       )}
-      <div className="row">
-        <div className="field" style={{ flex: 1 }}>
-          <label>{t("field.occurredAt")}</label>
-          <div className="row">
-            <input
-              type="number"
-              value={form.year}
-              onChange={(e) => setForm({ ...form, year: Number(e.target.value) })}
-            />
-            <input
-              type="number"
-              value={form.month}
-              onChange={(e) => setForm({ ...form, month: Number(e.target.value) })}
-            />
-            <input
-              type="number"
-              value={form.day}
-              onChange={(e) => setForm({ ...form, day: Number(e.target.value) })}
-            />
-            <input
-              type="number"
-              value={form.hour}
-              onChange={(e) => setForm({ ...form, hour: Number(e.target.value) })}
-            />
-            <input
-              type="number"
-              value={form.minute}
-              onChange={(e) => setForm({ ...form, minute: Number(e.target.value) })}
-            />
-          </div>
+      <div className="field">
+        <label>{t("field.occurredAt")}</label>
+        <div className="row">
+          <input
+            type="date"
+            className="mono"
+            value={partsToDateInput(form)}
+            onChange={(e) => setForm({ ...form, ...applyDateInput(form, e.target.value) })}
+          />
+          <input
+            type="time"
+            className="mono"
+            step={60}
+            value={partsToTimeInput(form)}
+            onChange={(e) => setForm({ ...form, ...applyTimeInput(form, e.target.value) })}
+          />
+          <button type="button" className="btn" onClick={() => setForm({ ...form, ...localParts() })}>
+            {t("action.now")}
+          </button>
         </div>
       </div>
-      <div className="field">
-        <label>{t("field.account")}</label>
-        <select
-          value={form.accountId}
-          onChange={(e) => setForm({ ...form, accountId: e.target.value })}
-        >
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {accountName(a, t)}
-            </option>
-          ))}
-        </select>
-      </div>
-      {kind?.counterpartyRequired && (
+      <div className="row">
         <div className="field">
-          <label>{t("field.destAccount")}</label>
+          <label>{accountLabel}</label>
           <select
-            value={form.counterAccountId}
-            onChange={(e) => setForm({ ...form, counterAccountId: e.target.value })}
+            value={form.accountId}
+            onChange={(e) => setForm({ ...form, accountId: e.target.value })}
           >
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
@@ -257,9 +278,24 @@ export default function EntryForm({
             ))}
           </select>
         </div>
-      )}
+        {kind?.counterAccountRequired && (
+          <div className="field">
+            <label>{counterLabel}</label>
+            <select
+              value={form.counterAccountId}
+              onChange={(e) => setForm({ ...form, counterAccountId: e.target.value })}
+            >
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {accountName(a, t)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
       <div className="row">
-        <div className="field" style={{ flex: 1 }}>
+        <div className="field">
           <label>{t("field.mainCategory")}</label>
           <select
             value={form.mainId}
@@ -276,7 +312,7 @@ export default function EntryForm({
             ))}
           </select>
         </div>
-        <div className="field" style={{ flex: 1 }}>
+        <div className="field">
           <label>{t("field.subCategory")}</label>
           <select
             value={form.categoryId}
@@ -290,9 +326,9 @@ export default function EntryForm({
           </select>
         </div>
       </div>
-      {kind?.counterpartyRequired && fee > 0 && (
+      {kind?.counterAmountRequired && fee > 0 && (
         <div className="row">
-          <div className="field" style={{ flex: 1 }}>
+          <div className="field">
             <label>{t("field.feeCategory")}</label>
             <select
               value={feeMainId}
@@ -308,7 +344,7 @@ export default function EntryForm({
               ))}
             </select>
           </div>
-          <div className="field" style={{ flex: 1 }}>
+          <div className="field">
             <label>&nbsp;</label>
             <select
               value={form.feeCategoryId}

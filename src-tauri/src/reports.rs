@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use chrono::{Datelike, Duration, NaiveDate};
 
 use crate::error::{AppError, Result};
-use crate::kinds::registry::{self, ReportBucket};
+use crate::kinds::registry::{self, DebtEffect, ReportBucket};
 use crate::models::*;
 use crate::time_util;
 
@@ -338,14 +338,11 @@ fn ranking(entries: &[&EntryRow], side: ReportBucket) -> Vec<RankingRow> {
 
 fn secondary(entries: &[&EntryRow]) -> (i64, i64, i64, i64) {
     let mut repayment = 0i64;
-    let mut prepayment = 0i64;
     let mut volume = 0i64;
     let mut fees = 0i64;
     for e in entries {
-        match e.kind_id.as_str() {
-            "repayment" => repayment += e.amount_minor,
-            "prepayment" => prepayment += e.amount_minor,
-            _ => {}
+        if registry::debt_counter_or_none(&e.kind_id) == DebtEffect::Decrease {
+            repayment += e.amount_minor;
         }
         if registry::effect_or_none(&e.kind_id) == registry::BalanceEffect::Transfer {
             if let Some(c) = e.counter_amount_minor {
@@ -357,7 +354,7 @@ fn secondary(entries: &[&EntryRow]) -> (i64, i64, i64, i64) {
             }
         }
     }
-    (repayment, prepayment, volume, fees)
+    (repayment, 0, volume, fees)
 }
 
 pub fn build_report(
@@ -451,6 +448,9 @@ mod tests {
         let (inc, exp) = registry::pnl_amounts("expense", 200, None);
         assert_eq!(inc, 0);
         assert_eq!(exp, 200);
+        let (inc, exp) = registry::pnl_amounts("prepayment", 300, None);
+        assert_eq!(inc, 0);
+        assert_eq!(exp, 300);
         let (inc, exp) = registry::pnl_amounts("mystery", 9, None);
         assert_eq!(inc, 0);
         assert_eq!(exp, 0);

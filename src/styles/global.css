@@ -5,37 +5,19 @@
 @import "@fontsource/ibm-plex-mono/500.css";
 @import "@fontsource/noto-sans-sc/400.css";
 @import "@fontsource/noto-sans-sc/500.css";
-
-:root,
-[data-theme="light"] {
-  --bg: #f4f4f5;
-  --surface: #fafafa;
-  --line: #d4d4d8;
-  --text: #18181b;
-  --muted: #71717a;
-  --accent-in: #0e7490;
-  --accent-out: #c2410c;
-  --accent-neutral: #52525b;
-  --danger: #b91c1c;
-  --focus: #3f3f46;
-  --fill: #e4e4e7;
-  --titlebar: #e4e4e7;
-}
-
-[data-theme="dark"] {
-  --bg: #18181b;
-  --surface: #27272a;
-  --line: #3f3f46;
-  --text: #fafafa;
-  --muted: #a1a1aa;
-  --accent-in: #22d3ee;
-  --accent-out: #fb923c;
-  --accent-neutral: #a1a1aa;
-  --danger: #f87171;
-  --focus: #d4d4d8;
-  --fill: #3f3f46;
-  --titlebar: #27272a;
-}
+@import "@fontsource/source-sans-3/400.css";
+@import "@fontsource/source-sans-3/500.css";
+@import "@fontsource/source-sans-3/600.css";
+@import "@fontsource/source-code-pro/400.css";
+@import "@fontsource/source-code-pro/500.css";
+@import "@fontsource/cascadia-code/400.css";
+@import "@fontsource/cascadia-code/500.css";
+@import "@fontsource/mona-sans/400.css";
+@import "@fontsource/mona-sans/500.css";
+@import "@fontsource/mona-sans/600.css";
+@import "@fontsource/outfit/400.css";
+@import "@fontsource/outfit/500.css";
+@import "@fontsource/outfit/600.css";
 
 * {
   box-sizing: border-box;
@@ -49,7 +31,7 @@ body,
 }
 
 body {
-  font-family: "IBM Plex Sans", "Noto Sans SC", sans-serif;
+  font-family: var(--font-ui);
   font-size: 13px;
   font-weight: 400;
   color: var(--text);
@@ -67,7 +49,7 @@ textarea {
 }
 
 .mono {
-  font-family: "IBM Plex Mono", "Noto Sans SC", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums lining-nums;
 }
 

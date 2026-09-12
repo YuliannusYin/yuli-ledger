@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function DragList<T extends { id: string }>({
   items,
@@ -13,32 +14,93 @@ export default function DragList<T extends { id: string }>({
   onReorder: (ids: string[]) => void;
   render: (item: T) => ReactNode;
 }) {
-  const [dragId, setDragId] = useState<string | null>(null);
+  const { t } = useTranslation();
+  const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    function onDown(e: MouseEvent) {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      setMenu(null);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenu(null);
+    }
+    function onScroll() {
+      setMenu(null);
+    }
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [menu]);
+
+  function move(id: string, dir: -1 | 1) {
+    const ids = items.map((i) => i.id);
+    const from = ids.indexOf(id);
+    const to = from + dir;
+    if (from < 0 || to < 0 || to >= ids.length) return;
+    const next = [...ids];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onReorder(next);
+    setMenu(null);
+  }
+
+  const menuIndex = menu ? items.findIndex((i) => i.id === menu.id) : -1;
 
   return (
     <div className="list surface">
       {items.map((item) => (
         <div
           key={item.id}
-          draggable
           className={`list-item ${selectedId === item.id ? "active" : ""}`}
           onClick={() => onSelect(item.id)}
-          onDragStart={() => setDragId(item.id)}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => {
-            if (!dragId || dragId === item.id) return;
-            const ids = items.map((i) => i.id);
-            const from = ids.indexOf(dragId);
-            const to = ids.indexOf(item.id);
-            ids.splice(from, 1);
-            ids.splice(to, 0, dragId);
-            onReorder(ids);
-            setDragId(null);
+          onContextMenu={(e) => {
+            e.preventDefault();
+            onSelect(item.id);
+            const width = 128;
+            const height = 64;
+            setMenu({
+              id: item.id,
+              left: Math.min(Math.max(8, e.clientX), window.innerWidth - width - 8),
+              top: Math.min(Math.max(8, e.clientY), window.innerHeight - height - 8),
+            });
           }}
         >
-          {render(item)}
+          <div className="list-item-body">{render(item)}</div>
         </div>
       ))}
+      {menu && (
+        <div
+          ref={menuRef}
+          className="ctx-menu surface"
+          style={{ left: menu.left, top: menu.top }}
+          role="menu"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            disabled={menuIndex <= 0}
+            onClick={() => move(menu.id, -1)}
+          >
+            {t("action.moveUp")}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={menuIndex < 0 || menuIndex >= items.length - 1}
+            onClick={() => move(menu.id, 1)}
+          >
+            {t("action.moveDown")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

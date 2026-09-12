@@ -24,6 +24,14 @@ pub enum FeeReportBucket {
     None,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DebtEffect {
+    Increase,
+    Decrease,
+    None,
+}
+
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KindDescriptor {
@@ -34,23 +42,15 @@ pub struct KindDescriptor {
     pub balance_effect: BalanceEffect,
     pub report_bucket: ReportBucket,
     pub fee_report_bucket: FeeReportBucket,
+    pub debt_effect_primary: DebtEffect,
+    pub debt_effect_counter: DebtEffect,
     pub category_required: bool,
-    pub counterparty_required: bool,
+    pub counter_account_required: bool,
+    pub counter_amount_required: bool,
+    pub primary_account_label_key: Option<&'static str>,
+    pub counter_account_label_key: Option<&'static str>,
     pub implemented: bool,
 }
-
-pub const INCOME: KindDescriptor = KindDescriptor {
-    id: "income",
-    label_key: "kind.income",
-    hint_key: None,
-    payload_schema_version: 1,
-    balance_effect: BalanceEffect::Increase,
-    report_bucket: ReportBucket::Income,
-    fee_report_bucket: FeeReportBucket::None,
-    category_required: true,
-    counterparty_required: false,
-    implemented: true,
-};
 
 pub const EXPENSE: KindDescriptor = KindDescriptor {
     id: "expense",
@@ -60,8 +60,49 @@ pub const EXPENSE: KindDescriptor = KindDescriptor {
     balance_effect: BalanceEffect::Decrease,
     report_bucket: ReportBucket::Expense,
     fee_report_bucket: FeeReportBucket::None,
+    debt_effect_primary: DebtEffect::None,
+    debt_effect_counter: DebtEffect::None,
     category_required: true,
-    counterparty_required: false,
+    counter_account_required: false,
+    counter_amount_required: false,
+    primary_account_label_key: None,
+    counter_account_label_key: None,
+    implemented: true,
+};
+
+pub const INCOME: KindDescriptor = KindDescriptor {
+    id: "income",
+    label_key: "kind.income",
+    hint_key: None,
+    payload_schema_version: 1,
+    balance_effect: BalanceEffect::Increase,
+    report_bucket: ReportBucket::Income,
+    fee_report_bucket: FeeReportBucket::None,
+    debt_effect_primary: DebtEffect::None,
+    debt_effect_counter: DebtEffect::None,
+    category_required: true,
+    counter_account_required: false,
+    counter_amount_required: false,
+    primary_account_label_key: None,
+    counter_account_label_key: None,
+    implemented: true,
+};
+
+pub const PREPAYMENT: KindDescriptor = KindDescriptor {
+    id: "prepayment",
+    label_key: "kind.prepayment",
+    hint_key: Some("kind.prepayment.hint"),
+    payload_schema_version: 1,
+    balance_effect: BalanceEffect::None,
+    report_bucket: ReportBucket::Expense,
+    fee_report_bucket: FeeReportBucket::None,
+    debt_effect_primary: DebtEffect::Increase,
+    debt_effect_counter: DebtEffect::None,
+    category_required: true,
+    counter_account_required: false,
+    counter_amount_required: false,
+    primary_account_label_key: None,
+    counter_account_label_key: None,
     implemented: true,
 };
 
@@ -73,21 +114,13 @@ pub const REPAYMENT: KindDescriptor = KindDescriptor {
     balance_effect: BalanceEffect::Decrease,
     report_bucket: ReportBucket::None,
     fee_report_bucket: FeeReportBucket::None,
+    debt_effect_primary: DebtEffect::None,
+    debt_effect_counter: DebtEffect::Decrease,
     category_required: true,
-    counterparty_required: false,
-    implemented: true,
-};
-
-pub const PREPAYMENT: KindDescriptor = KindDescriptor {
-    id: "prepayment",
-    label_key: "kind.prepayment",
-    hint_key: Some("kind.prepayment.hint"),
-    payload_schema_version: 1,
-    balance_effect: BalanceEffect::Decrease,
-    report_bucket: ReportBucket::None,
-    fee_report_bucket: FeeReportBucket::None,
-    category_required: true,
-    counterparty_required: false,
+    counter_account_required: true,
+    counter_amount_required: false,
+    primary_account_label_key: Some("field.repayFromAccount"),
+    counter_account_label_key: Some("field.repaidAccount"),
     implemented: true,
 };
 
@@ -99,12 +132,17 @@ pub const TRANSFER: KindDescriptor = KindDescriptor {
     balance_effect: BalanceEffect::Transfer,
     report_bucket: ReportBucket::None,
     fee_report_bucket: FeeReportBucket::Expense,
+    debt_effect_primary: DebtEffect::None,
+    debt_effect_counter: DebtEffect::None,
     category_required: true,
-    counterparty_required: true,
+    counter_account_required: true,
+    counter_amount_required: true,
+    primary_account_label_key: None,
+    counter_account_label_key: Some("field.destAccount"),
     implemented: true,
 };
 
-pub const ALL: &[KindDescriptor] = &[INCOME, EXPENSE, REPAYMENT, PREPAYMENT, TRANSFER];
+pub const ALL: &[KindDescriptor] = &[EXPENSE, INCOME, PREPAYMENT, REPAYMENT, TRANSFER];
 
 pub fn get(id: &str) -> Option<&'static KindDescriptor> {
     ALL.iter().find(|k| k.id == id)
@@ -127,6 +165,18 @@ pub fn fee_report_bucket_or_none(id: &str) -> FeeReportBucket {
     get(id)
         .map(|k| k.fee_report_bucket)
         .unwrap_or(FeeReportBucket::None)
+}
+
+pub fn debt_primary_or_none(id: &str) -> DebtEffect {
+    get(id)
+        .map(|k| k.debt_effect_primary)
+        .unwrap_or(DebtEffect::None)
+}
+
+pub fn debt_counter_or_none(id: &str) -> DebtEffect {
+    get(id)
+        .map(|k| k.debt_effect_counter)
+        .unwrap_or(DebtEffect::None)
 }
 
 pub fn transfer_fee(amount_minor: i64, counter_amount_minor: i64) -> i64 {
@@ -176,5 +226,37 @@ pub fn ranking_amount(kind_id: &str, side: ReportBucket, amount_minor: i64, coun
             }
         }
         ReportBucket::None => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn implemented_order_is_expense_first() {
+        let ids: Vec<&str> = implemented().iter().map(|k| k.id).collect();
+        assert_eq!(
+            ids,
+            ["expense", "income", "prepayment", "repayment", "transfer"]
+        );
+    }
+
+    #[test]
+    fn prepayment_counts_as_expense_not_balance() {
+        assert_eq!(PREPAYMENT.report_bucket, ReportBucket::Expense);
+        assert_eq!(PREPAYMENT.balance_effect, BalanceEffect::None);
+        assert_eq!(PREPAYMENT.debt_effect_primary, DebtEffect::Increase);
+        let (inc, exp) = pnl_amounts("prepayment", 100, None);
+        assert_eq!((inc, exp), (0, 100));
+    }
+
+    #[test]
+    fn repayment_has_counter_account_not_amount() {
+        assert!(REPAYMENT.counter_account_required);
+        assert!(!REPAYMENT.counter_amount_required);
+        assert_eq!(REPAYMENT.debt_effect_counter, DebtEffect::Decrease);
+        let (inc, exp) = pnl_amounts("repayment", 5000, None);
+        assert_eq!((inc, exp), (0, 0));
     }
 }

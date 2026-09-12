@@ -55,7 +55,7 @@
   width: 200px;
   flex-shrink: 0;
   border-right: 1px solid var(--line);
-  background: var(--bg);
+  background: var(--rail-bg);
   display: flex;
   flex-direction: column;
   padding: 8px 0;
@@ -74,14 +74,14 @@
   margin: 2px 8px;
   padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius);
   background: transparent;
-  color: var(--text);
+  color: var(--rail-text);
   text-align: left;
 }
 
 .rail-item.active {
-  border-color: var(--line);
+  border-color: var(--accent);
   background: var(--fill);
 }
 
@@ -103,7 +103,7 @@
   height: 28px;
   border: 1px solid var(--line);
   background: var(--surface);
-  border-radius: 2px;
+  border-radius: var(--radius);
   color: var(--muted);
 }
 
@@ -117,7 +117,8 @@
 .surface {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 h1,
@@ -139,6 +140,7 @@ label,
 input[type="text"],
 input[type="number"],
 input[type="date"],
+input[type="time"],
 input[type="datetime-local"],
 select,
 textarea {
@@ -146,7 +148,7 @@ textarea {
   height: 30px;
   border: 1px solid var(--line);
   background: var(--bg);
-  border-radius: 2px;
+  border-radius: var(--radius);
   padding: 0 8px;
 }
 
@@ -158,8 +160,25 @@ textarea {
 
 .row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  align-items: end;
+  align-items: flex-end;
+}
+
+.row > .field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.row input[type="date"],
+.row input[type="time"] {
+  width: auto;
+  min-width: 0;
+  flex: 1;
+}
+
+.row > .btn {
+  flex: 0 0 auto;
 }
 
 .field {
@@ -170,7 +189,7 @@ textarea {
   height: 36px;
   font-size: 20px;
   font-weight: 600;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -182,12 +201,12 @@ textarea {
 }
 
 .kind-btn {
-  flex: 1;
-  min-width: 72px;
+  flex: 0 0 auto;
   height: 28px;
+  padding: 0 10px;
   border: 1px solid var(--line);
   background: transparent;
-  border-radius: 2px;
+  border-radius: var(--radius);
 }
 
 .kind-btn.active {
@@ -200,12 +219,16 @@ textarea {
   padding: 0 12px;
   border: 1px solid var(--line);
   background: var(--surface);
-  border-radius: 2px;
+  border-radius: var(--radius);
 }
 
 .btn.primary {
   background: var(--fill);
   font-weight: 500;
+}
+
+.btn-block {
+  width: 100%;
 }
 
 .btn.danger {
@@ -253,7 +276,7 @@ textarea {
 
 .table td.num {
   text-align: right;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -281,17 +304,59 @@ textarea {
 .list-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   height: 32px;
   padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: 2px;
-  cursor: grab;
+  border-radius: var(--radius);
+  cursor: pointer;
 }
 
 .list-item.active {
   border-color: var(--line);
   background: var(--fill);
+}
+
+.list-item-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.list-item-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.ctx-menu {
+  position: fixed;
+  z-index: 40;
+  min-width: 120px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ctx-menu button {
+  height: 28px;
+  padding: 0 10px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius);
+}
+
+.ctx-menu button:hover:not(:disabled) {
+  background: var(--fill);
+}
+
+.ctx-menu button:disabled {
+  color: var(--muted);
 }
 
 .filters {
@@ -329,14 +394,14 @@ textarea {
   height: 20px;
   line-height: 18px;
   margin-right: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius);
   font-size: 12px;
 }
 
 .seg {
   display: flex;
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: var(--radius);
   overflow: hidden;
 }
 
@@ -401,6 +466,7 @@ textarea {
 .modal {
   width: 360px;
   padding: 16px;
+  box-shadow: var(--shadow);
 }
 
 .tags {
@@ -409,6 +475,7 @@ textarea {
   gap: 4px;
   min-height: 30px;
   border: 1px solid var(--line);
+  border-radius: var(--radius);
   padding: 4px;
   background: var(--bg);
 }
@@ -422,17 +489,199 @@ textarea {
 }
 
 .chart {
-  height: 180px;
+  height: 228px;
   margin: 8px 0 16px;
+  position: relative;
+}
+
+.chart-axis {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.chart-tooltip {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 8px;
+  pointer-events: none;
+  z-index: 10;
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+
+.split.accounts {
+  grid-template-columns: 320px 1fr;
+}
+
+.list-item-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-figures {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-balance {
+  color: var(--account-balance);
+}
+
+.account-debt {
+  color: var(--account-debt);
+}
+
+.account-sep {
+  color: var(--muted);
+  margin: 0 4px;
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 18px);
+  gap: 4px;
+}
+
+.color-grid button {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.color-grid button.active {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
 }
 
 .swatch {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   margin-right: 6px;
   vertical-align: middle;
   border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+button.swatch {
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+}
+
+.color-popover {
+  position: fixed;
+  z-index: 30;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.ledger-days {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.ledger-cols {
+  display: grid;
+  grid-template-columns:
+    48px
+    56px
+    minmax(80px, 0.8fr)
+    minmax(96px, 1.1fr)
+    minmax(96px, 1.2fr)
+    minmax(72px, 0.8fr)
+    minmax(80px, 1.4fr);
+  column-gap: 8px;
+  align-items: center;
+}
+
+.ledger-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 8px;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.ledger-head .num,
+.ledger-row .num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.day-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+.day-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 500;
+}
+
+.day-card-sums {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+
+.ledger-row {
+  min-height: 34px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.day-card > .ledger-row:last-of-type {
+  border-bottom: 0;
+}
+
+.ledger-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ledger-row > span:not(.num) {
+  white-space: nowrap;
+}
+
+.ledger-row:hover {
+  background: color-mix(in srgb, var(--surface) 70%, var(--fill));
+}
+
+.ledger-row.selected {
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
+  background: var(--fill);
 }
 
 .section {
@@ -451,4 +700,48 @@ textarea {
   font-size: 12px;
   color: var(--muted);
   margin-top: 6px;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  text-align: left;
+  color: var(--text);
+}
+
+.theme-card.active {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.theme-card-swatches {
+  display: flex;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.theme-card-swatches span {
+  flex: 1;
+}
+
+.theme-card-label {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

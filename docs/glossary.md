@@ -5,17 +5,19 @@ Stable vocabulary for design and, later, code. Prefer these English terms in ide
 | Term | Meaning |
 |------|---------|
 | **Ledger** | The single book this installation holds: all accounts, categories, tags, and entries. v1 has one ledger per database file, not multiple named books. |
-| **Entry** | The smallest posted unit. One row: dated, categorized, tagged, noted, of one **entry kind**. Most kinds touch one account; **transfer** also has a counterparty. |
-| **Entry kind** | A registered kind of entry. v1: `income`, `expense`, `repayment`, `prepayment`, `transfer`. Identified by a stable string id. Display names are i18n keys, never the id itself. |
+| **Entry** | The smallest posted unit. One row: dated, categorized, tagged, noted, of one **entry kind**. Most kinds touch one account; **transfer** and **repayment** also have a counterparty. |
+| **Entry kind** | A registered kind of entry. v1: `income`, `expense`, `repayment`, `prepayment`, `transfer`. Identified by a stable string id. Display names are i18n keys, never the id itself. Display order: expense, income, prepayment, repayment, transfer. |
 | **Kind payload** | Versioned JSON on the entry for fields that only that kind understands. v1 kinds keep money and account FKs on columns; payload is `{ "v": 1 }`. |
-| **Kind registry** | The catalog of kinds: ids, payload schema versions, balance effects, report buckets, and whether category / counterparty are required. Application behavior looks up the registry instead of hardcoding kinds. |
-| **Account** | A named pot of money the user creates and edits (cash, bank, WeChat, …), with optional **note**. Every entry has a primary `accountId`. |
+| **Kind registry** | The catalog of kinds: ids, payload schema versions, balance effects, debt effects, report buckets, and whether category / counter-account / counter-amount are required. Application behavior looks up the registry instead of hardcoding kinds. |
+| **Account** | A named pot the user creates and edits (cash, bank, WeChat, …), with optional **note**, an opening **balance**, and an opening **debt**. Every entry has a primary `accountId`. |
 | **Account note** | Free text on an account, not on the entry. |
-| **Counterparty account** | The second account on a `transfer` (`counterAccountId`): where money **arrives**. |
+| **Counterparty account** | The second account on a two-account kind (`counterAccountId`): transfer destination, or the account being repaid. |
 | **Transfer fee** | Derived: `amountMinor - counterAmountMinor` on a transfer. Counts as **expense** under `feeCategoryId`. Not a second entry. |
-| **Opening balance** | Amount already in the account before the first entry that should affect it, as of an opening instant. |
-| **Balance** | Derived: opening balance plus the signed effects of posted entries on that account (including transfer source and destination). Not a stored source of truth. |
-| **Thin kind** | `repayment` and `prepayment` in v1: one outflow, category + note, no debt/prepaid entity, no remaining balance, no settlement. |
+| **Opening balance** | Amount already in the account before the first entry that should affect **balance**, as of an opening instant. |
+| **Opening debt** | Amount already in the account’s **debt** before the first entry that should affect debt, as of the same opening instant. |
+| **Balance** | Derived: opening balance plus the signed **balanceEffect** of posted entries on that account. Independent of debt. Not a stored source of truth. |
+| **Debt** | Derived: opening debt plus `debtEffectPrimary` / `debtEffectCounter` of posted entries. Independent of balance. Not a stored source of truth. |
+| **Thin kind** | v1 `prepayment` still has no prepaid-asset *table* and no settlement; `repayment` still has no named-debt *entity*. Each account’s derived debt is the remaining-balance number. |
 | **Category** | A node in a user-owned tree (mains and subs). Seeded on first run; afterwards add/rename/delete (when unused). Not a list compiled into the UI. |
 | **Leaf category** | A subcategory used as `categoryId` or `feeCategoryId`. |
 | **Tag** | A free-form label. An entry may have many tags. Tags are orthogonal to categories: one category path, many tags. |
@@ -24,7 +26,7 @@ Stable vocabulary for design and, later, code. Prefer these English terms in ide
 | **Occurred at** | When the economic event happened, precise to the minute. Distinct from when the row was created or edited. |
 | **Report** | A read-only aggregation over a **week, month, year, or custom** local-calendar range, for the **expense** or **income** side. |
 | **Report mode** | `week` (Mon–Sun), `month`, `year`, or `custom` (inclusive dates). |
-| **Report side** | `expense` (including transfer fees) or `income`. |
+| **Report side** | `expense` (including prepayment and transfer fees) or `income`. |
 | **Report bucket** | How a kind’s primary `amountMinor` contributes to P&L: `income`, `expense`, or `none`. |
 | **Fee report bucket** | How a transfer shortfall contributes; v1 `transfer` uses `expense`. |
 | **Balance effect** | How a kind changes accounts: `increase`, `decrease`, `transfer`, or `none`. |

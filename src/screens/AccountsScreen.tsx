@@ -34,6 +34,7 @@ export default function AccountsScreen({
   const [name, setName] = useState("");
   const [kind, setKind] = useState("other");
   const [opening, setOpening] = useState("0.00");
+  const [openingDebt, setOpeningDebt] = useState("0.00");
   const [openingAt, setOpeningAt] = useState(toUtcIso({ ...localParts(), hour: 0, minute: 0 }));
   const [note, setNote] = useState("");
   const [usage, setUsage] = useState(0);
@@ -45,6 +46,7 @@ export default function AccountsScreen({
     setName(accountName(acc, t));
     setKind(acc.accountKind);
     setOpening((acc.openingBalanceMinor / 100).toFixed(2));
+    setOpeningDebt((acc.openingDebtMinor / 100).toFixed(2));
     setOpeningAt(acc.openingAt);
     setNote(acc.note ?? "");
     void accountUsage(acc.id).then(setUsage);
@@ -54,7 +56,8 @@ export default function AccountsScreen({
   async function save() {
     if (!acc) return;
     const minor = parseCny(opening);
-    if (minor == null) {
+    const debtMinor = parseCny(openingDebt);
+    if (minor == null || debtMinor == null) {
       setError("error.amountInvalid");
       return;
     }
@@ -64,6 +67,7 @@ export default function AccountsScreen({
         name,
         accountKind: kind,
         openingBalanceMinor: minor,
+        openingDebtMinor: debtMinor,
         openingAt: toUtcIso(parts),
         note: note.trim() || null,
       });
@@ -78,6 +82,7 @@ export default function AccountsScreen({
       name: t("accounts.newName"),
       accountKind: "other",
       openingBalanceMinor: 0,
+      openingDebtMinor: 0,
       openingAt: toUtcIso({ ...localParts(), hour: 0, minute: 0 }),
       note: null,
     });
@@ -96,7 +101,7 @@ export default function AccountsScreen({
           {t("action.addAccount")}
         </button>
       </div>
-      <div className="split">
+      <div className="split accounts">
         <DragList
           items={accounts}
           selectedId={selected}
@@ -104,8 +109,8 @@ export default function AccountsScreen({
           onReorder={(ids) => void reorderAccounts(ids).then(onChanged)}
           render={(a) => (
             <>
-              <span>{accountName(a, t)}</span>
-              <span className="mono muted">{formatMinor(a.balanceMinor, locale, true)}</span>
+              <span className="list-item-name">{accountName(a, t)}</span>
+              <AccountFigures balanceMinor={a.balanceMinor} debtMinor={a.debtMinor} locale={locale} />
             </>
           )}
         />
@@ -130,6 +135,10 @@ export default function AccountsScreen({
               <input className="mono" value={opening} onChange={(e) => setOpening(e.target.value)} />
             </div>
             <div className="field">
+              <label>{t("field.openingDebt")}</label>
+              <input className="mono" value={openingDebt} onChange={(e) => setOpeningDebt(e.target.value)} />
+            </div>
+            <div className="field">
               <label>{t("field.openingAt")}</label>
               <input
                 type="datetime-local"
@@ -141,9 +150,9 @@ export default function AccountsScreen({
               <label>{t("field.accountNote")}</label>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
-            <p className="muted">
-              {t("accounts.balance")}: <span className="mono">{formatMinor(acc.balanceMinor, locale, true)}</span>
-              {settings.defaultAccountId === acc.id ? ` · ${t("accounts.default")}` : ""}
+            <p className="muted" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <AccountFigures balanceMinor={acc.balanceMinor} debtMinor={acc.debtMinor} locale={locale} />
+              {settings.defaultAccountId === acc.id ? <span>{t("accounts.default")}</span> : null}
             </p>
             {error && <p className="err">{t(error)}</p>}
             <div className="row">
@@ -196,6 +205,24 @@ export default function AccountsScreen({
         />
       )}
     </div>
+  );
+}
+
+function AccountFigures({
+  balanceMinor,
+  debtMinor,
+  locale,
+}: {
+  balanceMinor: number;
+  debtMinor: number;
+  locale: string;
+}) {
+  return (
+    <span className="mono account-figures">
+      <span className="account-balance">{formatMinor(balanceMinor, locale, true)}</span>
+      <span className="account-sep">|</span>
+      <span className="account-debt">{formatMinor(debtMinor, locale, true)}</span>
+    </span>
   );
 }
 

@@ -6,11 +6,11 @@ Related: [glossary.md](glossary.md), [entry-kinds.md](entry-kinds.md).
 
 ## Why accounts are first-class in v1
 
-Income and expense can be recorded with only categories. **Repayment**, **prepayment**, and **transfer** cannot: they are “money left this account” and, for transfer, “money entered that account.” If v1 has no account, those kinds collapse into notes.
+Income and expense can be recorded with only categories. **Repayment**, **prepayment**, and **transfer** cannot: they name which account(s) the entry belongs to. If v1 has no account, those kinds collapse into notes.
 
-v1 requires an **Account** on every entry (`accountId`). Transfers also require a **counterparty account**. Seed one **Default** account; the user adds, edits (including a **note**), and deletes accounts under the same rules as categories.
+v1 requires an **Account** on every entry (`accountId`). Transfers and repayments also require a **counterparty account**. Seed one **Default** account; the user adds, edits (including a **note**), and deletes accounts under the same rules as categories.
 
-v1 repayment and prepayment are **thin**: no liability ledger, no prepaid-asset ledger, no amortization, no reconciliation. Balance is derived.
+Account **balance** and **debt** are derived independently. There is no separate liability table or prepaid-asset table.
 
 ## Entity map
 
@@ -29,6 +29,7 @@ erDiagram
     string name
     string accountKind
     integer openingBalanceMinor
+    integer openingDebtMinor
     datetime openingAt
     string note
     boolean archived
@@ -74,10 +75,12 @@ There is one ledger per database. `LedgerSettings` is a single-row (or key-value
 | `schemaVersion` | Integer for future migrations. |
 | `uiLanguage` | Optional. `en` or `zh-Hans` when the user has chosen a language; null means follow the rule in [i18n.md](i18n.md). |
 | `colorScheme` | Optional. `light` \| `dark` \| `system`. Null means `system`. Visual tokens: [ui.md](ui.md). |
+| `uiTheme` | Optional. `metal` \| `claude` \| `vscode` \| `github` \| `tiktok`. Null means `metal`. Independent of `colorScheme`. |
 | `defaultFeeCategoryId` | Optional subcategory used as the initial `feeCategoryId` on a transfer with a fee. Seeded to Transfer → Transfer fee. Null if the user cleared it or deleted that category after retargeting. |
 | `reportMode` | Optional last Reports tab: `week` \| `month` \| `year` \| `custom`. Null → `month`. |
 | `reportSide` | Optional last side: `expense` \| `income`. Null → `expense`. |
 | `reportCustomFrom` / `reportCustomTo` | Optional local dates for Custom mode. |
+| `lastKindId` / `lastAccountId` / `lastCounterAccountId` / `lastCategoryId` / `lastFeeCategoryId` / `lastOccurredAt` | Optional last successful **Record** save. Used to restore the bookkeeping form after restart. Not foreign keys; invalid ids fall back. |
 
 Changing currency is out of v1. Do not add `currencyCode` on entries “just in case”; a later multi-currency design will be explicit.
 
@@ -89,7 +92,8 @@ Changing currency is out of v1. Do not add `currencyCode` on entries “just in 
 | `name` | User-visible; user data, not i18n (presets: see [i18n.md](i18n.md)). |
 | `accountKind` | Coarse class: `cash`, `bank`, `ewallet`, `credit`, `other`. Extensible string enum, not a second registry as heavy as entry kinds. WeChat / Alipay balances are `ewallet`. |
 | `openingBalanceMinor` | Integer minor units. May be zero. |
-| `openingAt` | Instant the opening balance refers to. Entries with `occurredAt` at or after this instant apply; document the comparison as **`occurredAt >= openingAt`**. |
+| `openingDebtMinor` | Integer minor units ≥ 0. Starting **debt** as of `openingAt`. Independent of opening balance. |
+| `openingAt` | Instant the opening balance **and** opening debt refer to. Entries with `occurredAt` at or after this instant apply; document the comparison as **`occurredAt >= openingAt`**. |
 | `note` | Optional free text (card number hint, “工资卡”, …). User data; not i18n. |
 | `archived` | Optional. Hidden from pickers; historical entries remain. v1 can ship without archive if create/rename/delete is enough. |
 | `sortOrder` | Optional, for the picker. |
@@ -99,9 +103,9 @@ Rules:
 
 - Accounts are **user-owned**. The UI lists them from SQLite; do not hardcode WeChat/bank names.
 - At least one account always exists. Seed **Default** (`preset.account.default`) on first run; the user may rename it, add others, and delete Default once another account exists and is the default.
-- Fields the user can edit: name, `accountKind`, opening balance / `openingAt`, **note**, sort order.
+- Fields the user can edit: name, `accountKind`, opening balance / opening debt / `openingAt`, **note**, sort order.
 - **Delete** an account only if no entry references it as `accountId` or `counterAccountId`, it is not the sole remaining account, and it is not `defaultAccountId` (assign a new default first). Do not cascade-delete entries.
-- A `credit` account is still just a named balance. Paying a credit-card **account** is a `transfer`. Paying a debt that is **not** an account is a `repayment`.
+- A `credit` account is still a named pot. Paying it as cash-in is a `transfer`. Reducing its **debt** is a `repayment` whose `counterAccountId` is that account.
 
 ### Derived balance
 
@@ -118,7 +122,24 @@ balance(account A) =
         where kind.balanceEffect = transfer and counterAccountId = A)
 ```
 
-Only entries that apply given `openingAt` are included. Ignore kinds with `balanceEffect: none`. Do not persist this sum as the source of truth; a cached column is optional and must be rebuildable.
+Only entries that apply given `openingAt` are included. Ignore kinds with `balanceEffect: none` (v1: `prepayment`). Do not persist this sum as the source of truth; a cached column is optional and must be rebuildable.
+
+### Derived debt
+
+```
+debt(account A) =
+  openingDebtMinor
+  + sum(amountMinor
+        where kind.debtEffectPrimary = increase and accountId = A)
+  - sum(amountMinor
+        where kind.debtEffectPrimary = decrease and accountId = A)
+  + sum(amountMinor
+        where kind.debtEffectCounter = increase and counterAccountId = A)
+  - sum(amountMinor
+        where kind.debtEffectCounter = decrease and counterAccountId = A)
+```
+
+Same `openingAt` cutoff as balance. Debt may be negative if repayments exceed opening debt plus prepayments. Balance and debt never subtract from each other.
 
 `amountMinor` and `counterAmountMinor` are always **non-negative**. Direction comes from the kind registry, not from the sign of the amount.
 
@@ -132,7 +153,7 @@ Only entries that apply given `openingAt` are included. Ignore kinds with `balan
 | `presetKey` | Null if user-created. |
 | `archived` | Optional hide-from-picker. Delete-when-unused is the v1 requirement. |
 | `sortOrder` | Optional. |
-| `colorHex` | `#RRGGBB` for pie slices. Required on **mains**; null on subs (derive from parent). Seeded from [ui.md](ui.md). User-created mains get the next palette color at insert. |
+| `colorHex` | `#RRGGBB` for pie slices. Required on **mains**; null on subs (derive from parent). Seeded from [ui.md](ui.md). User-created mains get the next unused palette color at insert. The user may change a main’s color later by picking from the built-in 96-color palette. |
 
 Rules:
 
@@ -162,7 +183,7 @@ Rules:
 
 ## Entry
 
-The atom. Core columns are the same for every kind. Nullable **counterparty** and **fee category** columns are a slot for two-account kinds (`transfer` in v1), not a second entry table.
+The atom. Core columns are the same for every kind. Nullable **counterparty** and **fee category** columns are a slot for two-account kinds (`transfer` and `repayment` in v1), not a second entry table.
 
 | Field | Role |
 |-------|------|
@@ -170,9 +191,9 @@ The atom. Core columns are the same for every kind. Nullable **counterparty** an
 | `kindId` | Registry id. |
 | `amountMinor` | Integer `> 0`. Primary amount: inflow, outflow, or **source** amount of a transfer. |
 | `occurredAt` | Event time, minute precision. Stored as UTC; see Time. |
-| `accountId` | Required. Primary account: dest of income, source of expense / repayment / prepayment / transfer. |
-| `counterAccountId` | Null unless the kind requires a counterparty (`transfer`). Destination account. |
-| `counterAmountMinor` | Null unless counterparty is set. Amount arriving at the destination. Integer `> 0`. |
+| `accountId` | Required. Primary account: dest of income, source of expense / repayment / transfer; debt account of prepayment. |
+| `counterAccountId` | Null unless the kind requires a counterparty (`transfer` destination, `repayment` account being repaid). |
+| `counterAmountMinor` | Null unless the kind requires a destination amount (`transfer`). Integer `> 0`. |
 | `categoryId` | Required subcategory for all v1 kinds (including `transfer`). |
 | `feeCategoryId` | Subcategory for a transfer fee; null when there is no fee. |
 | `note` | Optional string, empty allowed. |
@@ -213,14 +234,14 @@ The install is single-machine and offline, so a timezone change of the OS can mo
 
 - Every `kindId` must exist in the registry known to that app version. Unknown kinds: show as generic entries, do not crash; do not silently drop them.
 - Foreign keys: `accountId`, `counterAccountId`, `categoryId`, `feeCategoryId`, tags must exist when non-null.
-- Counterparty columns are either **all unused** (null / null / null fee) or **valid for `transfer`** as in [entry-kinds.md](entry-kinds.md).
+- Counterparty columns are unused, valid for `transfer`, or `counterAccountId` only for `repayment` as in [entry-kinds.md](entry-kinds.md).
 - No floating-point amounts in the database.
 
 ## What this model deliberately omits
 
 - A posting/legs table (transfer uses the counterparty slot instead)
 - A full double-entry chart of accounts
-- Liability and prepaid-asset tables (thin `repayment` / `prepayment`)
+- Liability and prepaid-asset *tables* (per-account derived debt is in)
 - Attachments, payee table, location
 - Recurring rules
 - Soft-delete flags (v1 deletes are hard; see [features.md](features.md))

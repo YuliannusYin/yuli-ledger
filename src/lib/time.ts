@@ -1,14 +1,16 @@
-export function pad(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-export function localParts(d = new Date()): {
+export type LocalParts = {
   year: number;
   month: number;
   day: number;
   hour: number;
   minute: number;
-} {
+};
+
+export function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+export function localParts(d = new Date()): LocalParts {
   return {
     year: d.getFullYear(),
     month: d.getMonth() + 1,
@@ -18,13 +20,7 @@ export function localParts(d = new Date()): {
   };
 }
 
-export function toUtcIso(parts: {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute: number;
-}): string {
+export function toUtcIso(parts: LocalParts): string {
   const local = new Date(
     parts.year,
     parts.month - 1,
@@ -37,14 +33,36 @@ export function toUtcIso(parts: {
   return `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())}T${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}:00Z`;
 }
 
-export function fromUtcIso(iso: string): {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute: number;
-} {
+export function fromUtcIso(iso: string): LocalParts {
   return localParts(new Date(iso));
+}
+
+export function partsToDateInput(parts: LocalParts): string {
+  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
+}
+
+export function partsToTimeInput(parts: LocalParts): string {
+  return `${pad(parts.hour)}:${pad(parts.minute)}`;
+}
+
+export function applyDateInput(parts: LocalParts, value: string): LocalParts {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return parts;
+  return {
+    ...parts,
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+  };
+}
+
+export function applyTimeInput(parts: LocalParts, value: string): LocalParts {
+  const match = /^(\d{1,2}):(\d{2})/.exec(value);
+  if (!match) return parts;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return parts;
+  return { ...parts, hour, minute };
 }
 
 export function localDateString(d = new Date()): string {
@@ -70,6 +88,33 @@ export function formatLocalDateTime(iso: string, locale: string): string {
     minute: "2-digit",
     hour12: false,
   }).format(d);
+}
+
+export function formatLocalTime(iso: string): string {
+  const p = fromUtcIso(iso);
+  return `${pad(p.hour)}:${pad(p.minute)}`;
+}
+
+export function localDateKey(iso: string): string {
+  return partsToDateInput(fromUtcIso(iso));
+}
+
+export function groupByLocalDate<T extends { occurredAt: string }>(
+  rows: T[],
+): { date: string; rows: T[] }[] {
+  const map = new Map<string, T[]>();
+  const order: string[] = [];
+  for (const row of rows) {
+    const date = localDateKey(row.occurredAt);
+    const bucket = map.get(date);
+    if (bucket) {
+      bucket.push(row);
+    } else {
+      map.set(date, [row]);
+      order.push(date);
+    }
+  }
+  return order.map((date) => ({ date, rows: map.get(date)! }));
 }
 
 export function formatLocalDate(isoOrDate: string, locale: string): string {
