@@ -130,6 +130,19 @@ pub fn custom_range_ok(from: NaiveDate, to: NaiveDate) -> Result<()> {
     Ok(())
 }
 
+pub fn parse_local_datetime_to_utc_iso(s: &str) -> Result<String> {
+    let trimmed = s.trim();
+    let naive = if let Ok(dt) = NaiveDateTime::parse_from_str(trimmed, "%Y-%m-%d %H:%M") {
+        dt
+    } else if let Ok(date) = NaiveDate::parse_from_str(trimmed, "%Y-%m-%d") {
+        date.and_hms_opt(0, 0, 0)
+            .ok_or_else(|| AppError::new("error.timeInvalid"))?
+    } else {
+        return Err(AppError::new("error.timeInvalid"));
+    };
+    Ok(format_utc_minute(naive_local_to_utc(naive)))
+}
+
 pub fn in_local_range(occurred_at: &str, from: NaiveDate, to: NaiveDate) -> Result<bool> {
     in_optional_local_range(occurred_at, Some(from), Some(to))
 }
@@ -172,6 +185,15 @@ mod tests {
     fn seconds_zeroed() {
         let dt = parse_utc_minute("2026-09-09T12:30:45Z").unwrap();
         assert_eq!(format_utc_minute(dt), "2026-09-09T12:30:00Z");
+    }
+
+    #[test]
+    fn local_datetime_parses_minute_or_date() {
+        let with_time = parse_local_datetime_to_utc_iso("2026-09-14 12:30").unwrap();
+        assert!(with_time.ends_with(":00Z"));
+        let date_only = parse_local_datetime_to_utc_iso("2026-09-14").unwrap();
+        assert!(date_only.contains("2026-09-1"));
+        assert!(parse_local_datetime_to_utc_iso("nope").is_err());
     }
 
     #[test]

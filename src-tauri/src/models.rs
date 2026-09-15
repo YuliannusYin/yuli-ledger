@@ -13,6 +13,7 @@ pub struct KindDto {
     pub category_required: bool,
     pub counter_account_required: bool,
     pub counter_amount_required: bool,
+    pub counter_accounts_must_differ: bool,
     pub primary_account_label_key: Option<String>,
     pub counter_account_label_key: Option<String>,
     pub implemented: bool,
@@ -32,6 +33,8 @@ pub struct AccountDto {
     pub preset_key: Option<String>,
     pub balance_minor: i64,
     pub debt_minor: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,6 +46,8 @@ pub struct CategoryDto {
     pub preset_key: Option<String>,
     pub sort_order: i32,
     pub color_hex: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +96,8 @@ pub struct EntryDto {
     pub created_at: String,
     pub updated_at: String,
     pub tag_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,6 +115,55 @@ pub struct EntryWrite {
     pub tag_names: Vec<String>,
     #[serde(default)]
     pub kind_payload: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingEntryDto {
+    pub id: String,
+    pub amount_minor: i64,
+    pub occurred_at: String,
+    pub kind_id: Option<String>,
+    pub account_id: Option<String>,
+    pub counter_account_id: Option<String>,
+    pub counter_amount_minor: Option<i64>,
+    pub category_id: Option<String>,
+    pub fee_category_id: Option<String>,
+    pub note: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub tag_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingEntryWrite {
+    pub amount_minor: i64,
+    pub occurred_at: String,
+    pub kind_id: Option<String>,
+    pub account_id: Option<String>,
+    pub counter_account_id: Option<String>,
+    pub counter_amount_minor: Option<i64>,
+    pub category_id: Option<String>,
+    pub fee_category_id: Option<String>,
+    pub note: Option<String>,
+    pub tag_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportRowError {
+    pub line: i32,
+    pub code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportPendingResult {
+    pub imported: i64,
+    pub errors: Vec<ImportRowError>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -197,6 +253,7 @@ pub struct ReportDto {
     pub delta: Option<i64>,
     pub secondary_repayment: i64,
     pub secondary_prepayment: i64,
+    pub secondary_loan: i64,
     pub secondary_transfer_volume: i64,
     pub secondary_transfer_fees: i64,
     pub trend: Vec<TrendPoint>,
@@ -219,6 +276,30 @@ pub struct BootstrapDto {
     pub resolved_language: String,
     pub system_language: Option<String>,
     pub category_palette: Vec<String>,
+    pub pending_count: i64,
+    pub trash_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrashItemDto {
+    pub item_kind: String,
+    pub id: String,
+    pub deleted_at: String,
+    pub kind_id: Option<String>,
+    pub amount_minor: Option<i64>,
+    pub occurred_at: Option<String>,
+    pub account_id: Option<String>,
+    pub counter_account_id: Option<String>,
+    pub counter_amount_minor: Option<i64>,
+    pub category_id: Option<String>,
+    pub fee_category_id: Option<String>,
+    pub note: Option<String>,
+    pub name: Option<String>,
+    pub parent_id: Option<String>,
+    pub preset_key: Option<String>,
+    pub account_kind: Option<String>,
+    pub tag_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -251,6 +332,7 @@ impl KindDto {
             category_required: d.category_required,
             counter_account_required: d.counter_account_required,
             counter_amount_required: d.counter_amount_required,
+            counter_accounts_must_differ: d.counter_accounts_must_differ,
             primary_account_label_key: d.primary_account_label_key.map(|s| s.to_string()),
             counter_account_label_key: d.counter_account_label_key.map(|s| s.to_string()),
             implemented: d.implemented,

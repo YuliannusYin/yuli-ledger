@@ -67,7 +67,7 @@ pub fn write_backup_json(conn: &rusqlite::Connection, path: &str) -> Result<()> 
     write_path(path, body.as_bytes())
 }
 
-fn write_path(path: &str, bytes: &[u8]) -> Result<()> {
+pub(crate) fn write_path(path: &str, bytes: &[u8]) -> Result<()> {
     let path = path.trim();
     if path.is_empty() {
         return Err(AppError::new("error.io"));
@@ -246,21 +246,11 @@ pub fn build_backup_json(conn: &rusqlite::Connection) -> Result<String> {
         exported_at: Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true),
         schema_version: settings.schema_version,
         settings,
-        accounts: db::list_accounts(conn)?,
-        categories: db::list_categories(conn)?,
+        accounts: db::list_accounts_including_deleted(conn)?,
+        categories: db::list_categories_including_deleted(conn)?,
         tags: db::list_tags(conn)?,
-        entries: db::list_entries(
-            conn,
-            &LedgerFilter {
-                from_date: None,
-                to_date: None,
-                kind_ids: Vec::new(),
-                account_ids: Vec::new(),
-                category_id: None,
-                tag_id: None,
-                note_contains: None,
-            },
-        )?,
+        entries: db::list_entries_including_deleted(conn)?,
+        pending_entries: db::list_pending_including_deleted(conn)?,
     };
     Ok(serde_json::to_string_pretty(&backup)?)
 }
@@ -277,6 +267,7 @@ struct BackupFile {
     categories: Vec<CategoryDto>,
     tags: Vec<TagDto>,
     entries: Vec<EntryDto>,
+    pending_entries: Vec<PendingEntryDto>,
 }
 
 fn label<'a>(labels: &'a HashMap<String, String>, key: &str, fallback: &'a str) -> &'a str {

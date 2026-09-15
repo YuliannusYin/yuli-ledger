@@ -15,7 +15,7 @@ In under a minute, record that money moved: how much, when (to the minute), whic
 ## Principles
 
 1. **Entry is the atom.** Everything you post is an entry. Features compose around entries, not around a zoo of unrelated screens.
-2. **Kinds stay open.** v1 ships five kinds. The model must accept later kinds without rewriting required entry columns or scattering `if kind == income` through the app.
+2. **Kinds stay open.** The model must accept later kinds without rewriting required entry columns or scattering `if kind == income` through the app.
 3. **Local file is the source of truth.** No network requirement. Backup means copying the database file.
 4. **English is the project language; Chinese is a locale.** Identifiers, kind ids, and source UI strings are English. Simplified Chinese is a translation. User-typed names stay as typed.
 5. **Prefer a thin v1 over a complete finance suite.** Ship recording, ledger, and reports. Leave investments, invoices, bank import, and named-debt *entities* for later or never.
@@ -25,18 +25,19 @@ In under a minute, record that money moved: how much, when (to the minute), whic
 
 In:
 
-- Create, edit, and delete entries of kinds `income`, `expense`, `repayment`, `prepayment`, `transfer`
+- Create, edit, and delete entries of kinds `income`, `expense`, `repayment`, `prepayment`, `loan`, `transfer`
 - User-owned **accounts** (seed Default; add/rename/delete; optional note)
 - User-owned **category tree** (seed [preset-categories.md](preset-categories.md); add/rename/delete mains and subs)
 - Tags and notes
 - Ledger list with filters and a detail view
+- **Pending** inbox: generic CSV import of amount + occurred-at; review then post
 - Reports: week / month / year / custom; expense or income side; trend, composition, ranking; annual year-comparison ([features.md](features.md))
 
 Out (see [roadmap.md](roadmap.md) for later):
 
 - Phone or web-hosted clients
 - Network, login, sync, or multi-device
-- Import from WeChat, Alipay, or banks
+- Import from WeChat, Alipay, or banks (generic CSV into Pending is in)
 - Named debt *entities* and prepayment settlement into expense
 - Full double-entry chart of accounts, multi-currency, budgets, attachments, recurring templates
 
@@ -50,4 +51,4 @@ These are not “later maybe” so much as **not this product**:
 
 ## Success for v1
 
-You can sit at a Windows PC, record today’s income, expense, repayment, prepayment, or a WeChat-to-bank transfer (with optional fee), find that row in the ledger, and see totals that match the rows. Account balances move as specified. The database file can be copied to a backup disk and opened again on the same app version.
+You can sit at a Windows PC, record today’s income, expense, repayment, prepayment, loan, or a WeChat-to-bank transfer (with optional fee), find that row in the ledger, and see totals that match the rows. Account balances move as specified. The database file can be copied to a backup disk and opened again on the same app version.

@@ -175,13 +175,14 @@ Classifies **`transfer` entries** (the kind). Not a second entry kind. Distinct 
 
 ### Finance · 财务
 
-Bank charges and a home for `repayment` category when the payment is not Housing (or similar). Transfer **fees** live under Transfer, not here.
+Bank charges, a home for `repayment` and `loan` when those payments are not Housing (or similar). Transfer **fees** live under Transfer, not here.
 
 | Key | en | zh-Hans |
 |-----|----|---------|
 | `preset.category.finance` | Finance | 财务 |
 | `preset.category.finance.bankfee` | Bank fee | 银行费用 |
 | `preset.category.finance.repayment` | Repayment | 还款 |
+| `preset.category.finance.loan` | Loan | 借款 |
 | `preset.category.finance.other` | Other | 其他 |
 
 ## Changing the tree later

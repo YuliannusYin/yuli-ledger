@@ -35,7 +35,7 @@ pub fn validate_kind_fields(desc: &KindDescriptor, input: &EntryWrite) -> Result
     if desc.counter_amount_required {
         validate_transfer(input)
     } else if desc.counter_account_required {
-        validate_counter_account_only(input)
+        validate_counter_account_only(desc, input)
     } else {
         validate_single_account(input)
     }
@@ -51,13 +51,13 @@ fn validate_single_account(input: &EntryWrite) -> Result<()> {
     Ok(())
 }
 
-fn validate_counter_account_only(input: &EntryWrite) -> Result<()> {
+fn validate_counter_account_only(desc: &KindDescriptor, input: &EntryWrite) -> Result<()> {
     let dest = input
         .counter_account_id
         .as_ref()
         .filter(|s| !s.is_empty())
         .ok_or_else(|| AppError::new("error.counterAccountRequired"))?;
-    if dest == &input.account_id {
+    if desc.counter_accounts_must_differ && dest == &input.account_id {
         return Err(AppError::new("error.accountsMustDiffer"));
     }
     if input.counter_amount_minor.is_some() || input.fee_category_id.is_some() {

@@ -5,13 +5,13 @@ Stable vocabulary for design and, later, code. Prefer these English terms in ide
 | Term | Meaning |
 |------|---------|
 | **Ledger** | The single book this installation holds: all accounts, categories, tags, and entries. v1 has one ledger per database file, not multiple named books. |
-| **Entry** | The smallest posted unit. One row: dated, categorized, tagged, noted, of one **entry kind**. Most kinds touch one account; **transfer** and **repayment** also have a counterparty. |
-| **Entry kind** | A registered kind of entry. v1: `income`, `expense`, `repayment`, `prepayment`, `transfer`. Identified by a stable string id. Display names are i18n keys, never the id itself. Display order: expense, income, prepayment, repayment, transfer. |
+| **Entry** | The smallest posted unit. One row: dated, categorized, tagged, noted, of one **entry kind**. Most kinds touch one account; **transfer**, **repayment**, and **loan** also have a counterparty. |
+| **Entry kind** | A registered kind of entry. Shipped: `income`, `expense`, `repayment`, `prepayment`, `loan`, `transfer`. Identified by a stable string id. Display names are i18n keys, never the id itself. Display order: expense, income, prepayment, repayment, loan, transfer. |
 | **Kind payload** | Versioned JSON on the entry for fields that only that kind understands. v1 kinds keep money and account FKs on columns; payload is `{ "v": 1 }`. |
 | **Kind registry** | The catalog of kinds: ids, payload schema versions, balance effects, debt effects, report buckets, and whether category / counter-account / counter-amount are required. Application behavior looks up the registry instead of hardcoding kinds. |
 | **Account** | A named pot the user creates and edits (cash, bank, WeChat, …), with optional **note**, an opening **balance**, and an opening **debt**. Every entry has a primary `accountId`. |
 | **Account note** | Free text on an account, not on the entry. |
-| **Counterparty account** | The second account on a two-account kind (`counterAccountId`): transfer destination, or the account being repaid. |
+| **Counterparty account** | The second account on a two-account kind (`counterAccountId`): transfer destination, the account being repaid, or the loan debt account. |
 | **Transfer fee** | Derived: `amountMinor - counterAmountMinor` on a transfer. Counts as **expense** under `feeCategoryId`. Not a second entry. |
 | **Opening balance** | Amount already in the account before the first entry that should affect **balance**, as of an opening instant. |
 | **Opening debt** | Amount already in the account’s **debt** before the first entry that should affect debt, as of the same opening instant. |
@@ -21,6 +21,8 @@ Stable vocabulary for design and, later, code. Prefer these English terms in ide
 | **Category** | A node in a user-owned tree (mains and subs). Seeded on first run; afterwards add/rename/delete (when unused). Not a list compiled into the UI. |
 | **Leaf category** | A subcategory used as `categoryId` or `feeCategoryId`. |
 | **Tag** | A free-form label. An entry may have many tags. Tags are orthogonal to categories: one category path, many tags. |
+| **Pending entry** | An imported draft that is not yet posted. Lives in `pending_entry`. Does not affect balance, debt, or reports until **Post**. Discard moves it to Trash. |
+| **Trash** | Holding area for deleted or discarded rows (`deletedAt` set). Live lists, reports, and balances ignore them. Restore clears `deletedAt`. Permanent delete or Empty Trash removes the row. |
 | **Note** | Free text on an **entry**. Distinct from **account note**. |
 | **Amount (minor units)** | Integer count of the smallest currency unit (fen for CNY). Never a binary floating-point money value. |
 | **Occurred at** | When the economic event happened, precise to the minute. Distinct from when the row was created or edited. |

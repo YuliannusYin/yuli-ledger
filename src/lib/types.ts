@@ -1,17 +1,21 @@
 export type ScreenId =
   | "record"
+  | "pending"
   | "ledger"
   | "reports"
   | "accounts"
   | "categories"
+  | "trash"
   | "settings";
 
 export const SCREENS: ScreenId[] = [
   "record",
+  "pending",
   "ledger",
   "reports",
   "accounts",
   "categories",
+  "trash",
   "settings",
 ];
 
@@ -26,6 +30,7 @@ export type KindDto = {
   categoryRequired: boolean;
   counterAccountRequired: boolean;
   counterAmountRequired: boolean;
+  counterAccountsMustDiffer: boolean;
   primaryAccountLabelKey: string | null;
   counterAccountLabelKey: string | null;
   implemented: boolean;
@@ -109,6 +114,40 @@ export type EntryWrite = {
   tagNames: string[];
 };
 
+export type PendingEntryDto = {
+  id: string;
+  amountMinor: number;
+  occurredAt: string;
+  kindId: string | null;
+  accountId: string | null;
+  counterAccountId: string | null;
+  counterAmountMinor: number | null;
+  categoryId: string | null;
+  feeCategoryId: string | null;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  tagIds: string[];
+};
+
+export type PendingEntryWrite = {
+  amountMinor: number;
+  occurredAt: string;
+  kindId: string | null;
+  accountId: string | null;
+  counterAccountId: string | null;
+  counterAmountMinor: number | null;
+  categoryId: string | null;
+  feeCategoryId: string | null;
+  note: string | null;
+  tagNames: string[];
+};
+
+export type ImportPendingResult = {
+  imported: number;
+  errors: { line: number; code: string }[];
+};
+
 export type AccountWrite = {
   name: string;
   accountKind: string;
@@ -156,6 +195,7 @@ export type ReportDto = {
   delta: number | null;
   secondaryRepayment: number;
   secondaryPrepayment: number;
+  secondaryLoan: number;
   secondaryTransferVolume: number;
   secondaryTransferFees: number;
   trend: { key: string; amountMinor: number }[];
@@ -183,6 +223,30 @@ export type BootstrapDto = {
   resolvedLanguage: string;
   systemLanguage: string | null;
   categoryPalette: string[];
+  pendingCount: number;
+  trashCount: number;
+};
+
+export type TrashItemKind = "entry" | "pending" | "account" | "category";
+
+export type TrashItemDto = {
+  itemKind: TrashItemKind;
+  id: string;
+  deletedAt: string;
+  kindId: string | null;
+  amountMinor: number | null;
+  occurredAt: string | null;
+  accountId: string | null;
+  counterAccountId: string | null;
+  counterAmountMinor: number | null;
+  categoryId: string | null;
+  feeCategoryId: string | null;
+  note: string | null;
+  name: string | null;
+  parentId: string | null;
+  presetKey: string | null;
+  accountKind: string | null;
+  tagIds: string[];
 };
 
 export type AppError = {

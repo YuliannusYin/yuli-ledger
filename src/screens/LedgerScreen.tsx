@@ -347,7 +347,7 @@ export default function LedgerScreen({
                             )}
                           </span>
                           <span>
-                            {row.counterAccountId
+                            {row.counterAccountId && row.counterAccountId !== row.accountId
                               ? `${accountName(src, t)} → ${accountName(dst, t)}`
                               : accountName(src, t)}
                           </span>

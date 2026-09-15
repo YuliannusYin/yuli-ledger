@@ -336,13 +336,16 @@ fn ranking(entries: &[&EntryRow], side: ReportBucket) -> Vec<RankingRow> {
     rows
 }
 
-fn secondary(entries: &[&EntryRow]) -> (i64, i64, i64, i64) {
+fn secondary(entries: &[&EntryRow]) -> (i64, i64, i64, i64, i64) {
     let mut repayment = 0i64;
+    let mut loan = 0i64;
     let mut volume = 0i64;
     let mut fees = 0i64;
     for e in entries {
-        if registry::debt_counter_or_none(&e.kind_id) == DebtEffect::Decrease {
-            repayment += e.amount_minor;
+        match registry::debt_counter_or_none(&e.kind_id) {
+            DebtEffect::Decrease => repayment += e.amount_minor,
+            DebtEffect::Increase => loan += e.amount_minor,
+            DebtEffect::None => {}
         }
         if registry::effect_or_none(&e.kind_id) == registry::BalanceEffect::Transfer {
             if let Some(c) = e.counter_amount_minor {
@@ -354,7 +357,7 @@ fn secondary(entries: &[&EntryRow]) -> (i64, i64, i64, i64) {
             }
         }
     }
-    (repayment, 0, volume, fees)
+    (repayment, 0, loan, volume, fees)
 }
 
 pub fn build_report(
@@ -388,8 +391,13 @@ pub fn build_report(
     };
 
     let (by_main, by_sub, by_account) = composition_maps(&current, side, categories);
-    let (secondary_repayment, secondary_prepayment, secondary_transfer_volume, secondary_transfer_fees) =
-        secondary(&current);
+    let (
+        secondary_repayment,
+        secondary_prepayment,
+        secondary_loan,
+        secondary_transfer_volume,
+        secondary_transfer_fees,
+    ) = secondary(&current);
 
     Ok(ReportDto {
         range_from: time_util::format_local_date(from),
@@ -404,6 +412,7 @@ pub fn build_report(
         delta,
         secondary_repayment,
         secondary_prepayment,
+        secondary_loan,
         secondary_transfer_volume,
         secondary_transfer_fees,
         trend: trend_points(&query.mode, from, to, &current, side),
@@ -452,6 +461,9 @@ mod tests {
         assert_eq!(inc, 0);
         assert_eq!(exp, 300);
         let (inc, exp) = registry::pnl_amounts("mystery", 9, None);
+        assert_eq!(inc, 0);
+        assert_eq!(exp, 0);
+        let (inc, exp) = registry::pnl_amounts("loan", 8000, None);
         assert_eq!(inc, 0);
         assert_eq!(exp, 0);
         let _ = row("expense", 1, None, "2026-01-01T00:00:00Z", "c", None);

@@ -8,7 +8,7 @@ These files are the source of truth for Yuli Ledger. They describe *what* to bui
 2. [glossary.md](glossary.md) — terms used everywhere else
 3. [domain-model.md](domain-model.md) — entities, money, time, categories, tags, accounts
 4. [preset-categories.md](preset-categories.md) — seeded main / sub category tree
-5. [entry-kinds.md](entry-kinds.md) — extensible entry kinds; v1 five kinds
+5. [entry-kinds.md](entry-kinds.md) — extensible entry kinds; shipped kinds including `loan`
 6. [features.md](features.md) — bookkeeping, ledger, reports
 7. [architecture.md](architecture.md) — Windows desktop, Tauri, SQLite, local files
 8. [i18n.md](i18n.md) — English source strings, Chinese as a locale
@@ -22,15 +22,15 @@ These files are the source of truth for Yuli Ledger. They describe *what* to bui
 | Platform | Windows desktop only, offline, single machine |
 | Stack (when coding starts) | Tauri 2, React, Vite, TypeScript, rusqlite; NSIS installer + portable folder |
 | Smallest unit | **Entry** |
-| Entry kinds | `income`, `expense`, `repayment`, `prepayment`, `transfer` (registry, not a closed enum) |
+| Entry kinds | `income`, `expense`, `repayment`, `prepayment`, `loan`, `transfer` (registry, not a closed enum) |
 | Classification | User-owned two-level tree, seeded then editable ([preset-categories.md](preset-categories.md)) |
 | Money | Integer minor units, single currency CNY |
 | Time | Year / month / day / hour / minute |
 | Accounts | First-class; transfer also has a destination account |
-| Features | Record, ledger, reports (week/month/year/custom), accounts, categories |
+| Features | Record, pending CSV import, ledger, reports (week/month/year/custom), accounts, categories, trash |
 | Look | Cold zinc instrument by default, compact, five skins × light/dark ([ui.md](ui.md)) |
 
-Out of v1: phone clients, network, sync, bill import, full double-entry, extra currencies, budgets, named-debt *entities*, prepayment settlement.
+Out of v1: phone clients, network, sync, WeChat/Alipay/bank bill import, full double-entry, extra currencies, budgets, named-debt *entities*, prepayment settlement.
 
 ## Implementation notes
 
@@ -39,7 +39,7 @@ These are build and UX choices. They do not change entity shapes in [domain-mode
 - App version starts at `0.1.0` until a tagged roadmap v1 release.
 - Kind registry lives only in Rust. The UI loads `id` / `labelKey` / flags via `list_kinds`. SQLite has no `CHECK (kind_id IN (…))`.
 - Database path is always `%LOCALAPPDATA%\YuliLedger\ledger.sqlite` (not the Tauri bundle identifier folder). Tauri identifier is `com.yuliledger.desktop`.
-- `LedgerSettings` is a single row (`id = 1`) with `schema_version = 3`. Entity primary keys are UUIDs generated in Rust.
+- `LedgerSettings` is a single row (`id = 1`) with `schema_version = 5`. Entity primary keys are UUIDs generated in Rust.
 - Seed Default account: `openingAt = 1970-01-01T00:00:00Z`, `openingBalanceMinor = 0`, `accountKind = other`. Preset `name` is stored `NULL` until the user renames.
 - v1 does not add an `archived` column. Pickers and ledger filters use every existing account.
 - Creating a main category also inserts one child named Other / 其他 for the active UI language (`presetKey = null`).

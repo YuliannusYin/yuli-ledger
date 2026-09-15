@@ -1,6 +1,6 @@
 import { useMemo, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import type { AccountDto, CategoryDto, EntryWrite, KindDto, SettingsDto } from "../lib/types";
+import type { AccountDto, CategoryDto, EntryWrite, KindDto, PendingEntryDto, PendingEntryWrite, SettingsDto } from "../lib/types";
 import { parseCny } from "../lib/money";
 import { accountName, categoryName, mains, subsOf } from "../lib/names";
 import {
@@ -107,7 +107,61 @@ export function formFromWrite(
   };
 }
 
+export function formFromPending(
+  pending: PendingEntryDto,
+  categories: CategoryDto[],
+  tagNames: string[],
+): FormState {
+  return formFromWrite(
+    {
+      kindId: pending.kindId ?? "",
+      amountMinor: pending.amountMinor,
+      occurredAt: pending.occurredAt,
+      accountId: pending.accountId ?? "",
+      counterAccountId: pending.counterAccountId,
+      counterAmountMinor: pending.counterAmountMinor,
+      categoryId: pending.categoryId ?? "",
+      feeCategoryId: pending.feeCategoryId,
+      note: pending.note,
+      tagNames,
+    },
+    categories,
+  );
+}
+
+export function toPendingWrite(form: FormState, kind: KindDto | undefined): { write?: PendingEntryWrite; error?: string } {
+  const amountMinor = parseCny(form.amount);
+  if (amountMinor == null || amountMinor <= 0) return { error: "error.amountInvalid" };
+  const occurredAt = toUtcIso(form);
+  let counterAmountMinor: number | null = null;
+  let feeCategoryId: string | null = null;
+  if (kind?.counterAmountRequired) {
+    const dest = parseCny(form.destAmount || form.amount);
+    counterAmountMinor = dest != null && dest > 0 ? dest : null;
+    if (counterAmountMinor != null && amountMinor - counterAmountMinor > 0) {
+      feeCategoryId = form.feeCategoryId || null;
+    }
+  }
+  return {
+    write: {
+      amountMinor,
+      occurredAt,
+      kindId: form.kindId || null,
+      accountId: form.accountId || null,
+      counterAccountId: kind?.counterAccountRequired ? form.counterAccountId || null : null,
+      counterAmountMinor: kind?.counterAmountRequired ? counterAmountMinor : null,
+      categoryId: form.categoryId || null,
+      feeCategoryId: kind?.counterAmountRequired ? feeCategoryId : null,
+      note: form.note.trim() || null,
+      tagNames: form.tags,
+    },
+  };
+}
+
 export function toWrite(form: FormState, kind: KindDto | undefined): { write?: EntryWrite; error?: string } {
+  if (!form.kindId) return { error: "error.kindRequired" };
+  if (!form.accountId) return { error: "error.accountRequired" };
+  if (!form.categoryId) return { error: "error.categoryRequired" };
   const amountMinor = parseCny(form.amount);
   if (amountMinor == null || amountMinor <= 0) return { error: "error.amountInvalid" };
   const occurredAt = toUtcIso(form);
@@ -135,7 +189,9 @@ export function toWrite(form: FormState, kind: KindDto | undefined): { write?: E
   }
   if (kind?.counterAccountRequired) {
     if (!form.counterAccountId) return { error: "error.counterAccountRequired" };
-    if (form.counterAccountId === form.accountId) return { error: "error.accountsMustDiffer" };
+    if (kind.counterAccountsMustDiffer && form.counterAccountId === form.accountId) {
+      return { error: "error.accountsMustDiffer" };
+    }
     return {
       write: {
         ...base,
@@ -163,6 +219,7 @@ export default function EntryForm({
   categories,
   error,
   amountRef,
+  allowEmpty = false,
 }: {
   form: FormState;
   setForm: (next: FormState) => void;
@@ -171,6 +228,7 @@ export default function EntryForm({
   categories: CategoryDto[];
   error: string | null;
   amountRef?: RefObject<HTMLInputElement | null>;
+  allowEmpty?: boolean;
 }) {
   const { t } = useTranslation();
   const kind = kinds.find((k) => k.id === form.kindId);
@@ -271,6 +329,7 @@ export default function EntryForm({
             value={form.accountId}
             onChange={(e) => setForm({ ...form, accountId: e.target.value })}
           >
+            {allowEmpty && <option value="">{t("pending.unset")}</option>}
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
                 {accountName(a, t)}
@@ -285,6 +344,7 @@ export default function EntryForm({
               value={form.counterAccountId}
               onChange={(e) => setForm({ ...form, counterAccountId: e.target.value })}
             >
+              {allowEmpty && <option value="">{t("pending.unset")}</option>}
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {accountName(a, t)}
@@ -305,6 +365,7 @@ export default function EntryForm({
               setForm({ ...form, mainId, categoryId: first?.id ?? "" });
             }}
           >
+            {allowEmpty && <option value="">{t("pending.unset")}</option>}
             {mainList.map((m) => (
               <option key={m.id} value={m.id}>
                 {categoryName(m, t)}
@@ -318,6 +379,7 @@ export default function EntryForm({
             value={form.categoryId}
             onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
           >
+            {allowEmpty && <option value="">{t("pending.unset")}</option>}
             {subList.map((s) => (
               <option key={s.id} value={s.id}>
                 {categoryName(s, t)}

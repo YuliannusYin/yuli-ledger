@@ -34,7 +34,7 @@ flowchart LR
 ```
 
 - **Window:** default about 1280×800; minimum about 960×640; remember size and position.
-- **Nav rail (left, ~200px, collapsible to icons):** Record, Ledger, Reports, Accounts, Categories, Settings. Current item: hairline + slight zinc fill, not a bright pill.
+- **Nav rail (left, ~200px, collapsible to icons):** Record, Pending, Ledger, Reports, Accounts, Categories, Trash, Settings. Current item: hairline + slight zinc fill, not a bright pill. Pending and Trash show a count badge when non-empty.
 - **Main:** one working surface. No extra app header besides the window title bar.
 - **Record** is its own nav item and the fastest path (`Ctrl+N` focuses Record even from elsewhere).
 - Ledger **inspector:** selecting a row opens a right pane (~320px) for detail/edit/delete. Do not navigate away to a second full page for v1 detail.
@@ -72,7 +72,7 @@ Tokens (implement as CSS variables). Names are English; values are the source of
 | `--muted` | `#71717a` | Secondary |
 | `--accent-in` | `#0e7490` | Income / positive (cyan-700) |
 | `--accent-out` | `#c2410c` | Expense / fee / prepayment amounts |
-| `--accent-neutral` | `#52525b` | Transfer / repayment amounts |
+| `--accent-neutral` | `#52525b` | Transfer / repayment / loan amounts |
 | `--danger` | `#b91c1c` | Destructive confirm only |
 | `--focus` | `#3f3f46` | Focus ring (zinc, 2px) |
 | `--fill` | `#e4e4e7` | Selected chrome |
@@ -168,6 +168,14 @@ Job: under a minute, preferably **one glance + keyboard**.
 - Row hover: slight surface shift. Selected row: hairline inside the row + inspector open.
 - Empty: one muted sentence + control to go to Record. No illustration.
 
+## Trash
+
+Same zinc list + inspector as Ledger, grouped by local date of `deletedAt`. Type filter chips (all / entries / pending / accounts / categories). Inspector is **read-only** summary plus Restore and Delete permanently. Toolbar: Empty Trash. Count badge on the nav item when non-empty.
+
+## Pending
+
+Same zinc list + inspector as Ledger. Toolbar: download CSV template, import CSV, pending count. Rows start with amount and time only; kind/account/category may show “unset”. Inspector uses the Record form with empty options. Actions: save draft, post, discard. Import lives here, not in Settings.
+
 ## Reports
 
 Information architecture: [features.md](features.md).
@@ -179,7 +187,7 @@ Information architecture: [features.md](features.md).
 - **Composition:** 2D pie + table (swatch, name, amount, percent). Pie hole optional (donut is allowed if the center shows the side total in mono); no 3D, no slice explode.
 - **Comparison:** eight zinc bars, current period outlined; fill `--accent-out` or `--accent-in` by side. Same X/Y ticks and hover as the trend chart.
 - **Ranking:** ledger-like table.
-- Secondary repayment / transfer volume / fees: one muted line.
+- Secondary repayment / loan / transfer volume / fees: one muted line.
 - Click a ranking row: Ledger + inspector.
 
 ## Accounts and categories
@@ -190,7 +198,7 @@ Information architecture: [features.md](features.md).
 
 ## Settings
 
-Quiet list: language, **theme (five preview cards)**, color scheme, default account, default fee category, **read-only database path** (copy button), **export** (CSV entries and **TXT entries**, same optional date range; JSON full backup). No account-cloud banners. No import.
+Quiet list: language, **theme (five preview cards)**, color scheme, default account, default fee category, **read-only database path** (copy button), **export** (CSV entries and **TXT entries**, same optional date range; JSON full backup). CSV **import** is on Pending, not here. No account-cloud banners.
 
 ## Keyboard (v1)
 
@@ -198,7 +206,7 @@ Quiet list: language, **theme (five preview cards)**, color scheme, default acco
 |----------|--------|
 | `Ctrl+N` | Go to Record, focus amount |
 | `Ctrl+Enter` | Save on Record / inspector edit |
-| `Ctrl+1` … `Ctrl+6` | Nav: Record … Settings in rail order |
+| `Ctrl+1` … `Ctrl+8` | Nav: Record, Pending, Ledger, Reports, Accounts, Categories, Trash, Settings |
 | `[` / `]` | Reports: previous / next period (week, month, year) |
 | `Esc` | Close inspector; clear filter popovers |
 | `Delete` | Delete in inspector after the same confirm as the button |

@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS account (
   opening_at TEXT NOT NULL,
   note TEXT,
   sort_order INTEGER NOT NULL,
-  preset_key TEXT
+  preset_key TEXT,
+  deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS category (
@@ -19,7 +20,8 @@ CREATE TABLE IF NOT EXISTS category (
   name TEXT,
   preset_key TEXT,
   sort_order INTEGER NOT NULL,
-  color_hex TEXT
+  color_hex TEXT,
+  deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS tag (
@@ -63,7 +65,8 @@ CREATE TABLE IF NOT EXISTS entry (
   note TEXT,
   kind_payload TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS entry_tag (
@@ -79,6 +82,65 @@ CREATE INDEX IF NOT EXISTS idx_entry_category_id ON entry (category_id);
 CREATE INDEX IF NOT EXISTS idx_entry_fee_category_id ON entry (fee_category_id);
 CREATE INDEX IF NOT EXISTS idx_entry_kind_id ON entry (kind_id);
 CREATE INDEX IF NOT EXISTS idx_entry_tag_tag ON entry_tag (tag_id);
+
+CREATE TABLE IF NOT EXISTS pending_entry (
+  id TEXT PRIMARY KEY,
+  amount_minor INTEGER NOT NULL,
+  occurred_at TEXT NOT NULL,
+  kind_id TEXT,
+  account_id TEXT REFERENCES account(id),
+  counter_account_id TEXT REFERENCES account(id),
+  counter_amount_minor INTEGER,
+  category_id TEXT REFERENCES category(id),
+  fee_category_id TEXT REFERENCES category(id),
+  note TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS pending_entry_tag (
+  pending_entry_id TEXT NOT NULL REFERENCES pending_entry(id) ON DELETE CASCADE,
+  tag_id TEXT NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
+  PRIMARY KEY (pending_entry_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_entry_occurred_at ON pending_entry (occurred_at);
+CREATE INDEX IF NOT EXISTS idx_pending_entry_tag_tag ON pending_entry_tag (tag_id);
 "#;
 
-pub const SCHEMA_VERSION: i32 = 3;
+pub const PENDING_TABLES: &str = r#"
+CREATE TABLE IF NOT EXISTS pending_entry (
+  id TEXT PRIMARY KEY,
+  amount_minor INTEGER NOT NULL,
+  occurred_at TEXT NOT NULL,
+  kind_id TEXT,
+  account_id TEXT REFERENCES account(id),
+  counter_account_id TEXT REFERENCES account(id),
+  counter_amount_minor INTEGER,
+  category_id TEXT REFERENCES category(id),
+  fee_category_id TEXT REFERENCES category(id),
+  note TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS pending_entry_tag (
+  pending_entry_id TEXT NOT NULL REFERENCES pending_entry(id) ON DELETE CASCADE,
+  tag_id TEXT NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
+  PRIMARY KEY (pending_entry_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_entry_occurred_at ON pending_entry (occurred_at);
+CREATE INDEX IF NOT EXISTS idx_pending_entry_tag_tag ON pending_entry_tag (tag_id);
+"#;
+
+pub const TRASH_INDEXES: &str = r#"
+CREATE INDEX IF NOT EXISTS idx_entry_deleted_at ON entry (deleted_at);
+CREATE INDEX IF NOT EXISTS idx_pending_entry_deleted_at ON pending_entry (deleted_at);
+CREATE INDEX IF NOT EXISTS idx_account_deleted_at ON account (deleted_at);
+CREATE INDEX IF NOT EXISTS idx_category_deleted_at ON category (deleted_at);
+"#;
+
+pub const SCHEMA_VERSION: i32 = 5;

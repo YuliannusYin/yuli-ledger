@@ -3,6 +3,7 @@ mod commands;
 mod db;
 mod error;
 mod export;
+mod import;
 mod kinds;
 mod models;
 mod money;
@@ -56,7 +57,17 @@ pub fn run() {
             commands::get_report,
             commands::export_entries_csv,
             commands::export_entries_txt,
-            commands::export_backup_json
+            commands::export_backup_json,
+            commands::list_pending_entries,
+            commands::update_pending_entry,
+            commands::delete_pending_entry,
+            commands::post_pending_entry,
+            commands::import_pending_csv,
+            commands::write_pending_csv_template,
+            commands::list_trash,
+            commands::restore_trash,
+            commands::purge_trash,
+            commands::empty_trash
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
