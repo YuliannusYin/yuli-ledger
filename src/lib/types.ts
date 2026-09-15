@@ -5,6 +5,7 @@ export type ScreenId =
   | "reports"
   | "accounts"
   | "categories"
+  | "trash"
   | "settings";
 
 export const SCREENS: ScreenId[] = [
@@ -14,6 +15,7 @@ export const SCREENS: ScreenId[] = [
   "reports",
   "accounts",
   "categories",
+  "trash",
   "settings",
 ];
 
@@ -222,6 +224,29 @@ export type BootstrapDto = {
   systemLanguage: string | null;
   categoryPalette: string[];
   pendingCount: number;
+  trashCount: number;
+};
+
+export type TrashItemKind = "entry" | "pending" | "account" | "category";
+
+export type TrashItemDto = {
+  itemKind: TrashItemKind;
+  id: string;
+  deletedAt: string;
+  kindId: string | null;
+  amountMinor: number | null;
+  occurredAt: string | null;
+  accountId: string | null;
+  counterAccountId: string | null;
+  counterAmountMinor: number | null;
+  categoryId: string | null;
+  feeCategoryId: string | null;
+  note: string | null;
+  name: string | null;
+  parentId: string | null;
+  presetKey: string | null;
+  accountKind: string | null;
+  tagIds: string[];
 };
 
 export type AppError = {

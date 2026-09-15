@@ -112,13 +112,14 @@ Changing currency is out of v1. Do not add `currencyCode` on entries “just in 
 | `archived` | Optional. Hidden from pickers; historical entries remain. v1 can ship without archive if create/rename/delete is enough. |
 | `sortOrder` | Optional, for the picker. |
 | `presetKey` | Null for user accounts. For the seeded default, the i18n key. |
+| `deletedAt` | Null while live. Set when the unused account is moved to Trash. Hidden from pickers and the Accounts screen until restored. |
 
 Rules:
 
 - Accounts are **user-owned**. The UI lists them from SQLite; do not hardcode WeChat/bank names.
 - At least one account always exists. Seed **Default** (`preset.account.default`) on first run; the user may rename it, add others, and delete Default once another account exists and is the default.
 - Fields the user can edit: name, `accountKind`, opening balance / opening debt / `openingAt`, **note**, sort order.
-- **Delete** an account only if no posted **or pending** entry references it as `accountId` or `counterAccountId`, it is not the sole remaining account, and it is not `defaultAccountId` (assign a new default first). Do not cascade-delete entries.
+- **Delete** an account only if no posted **or pending** entry references it as `accountId` or `counterAccountId` (**including rows in Trash**), it is not the sole remaining **live** account, and it is not `defaultAccountId` (assign a new default first). Delete sets `deletedAt`; it does not cascade-delete entries.
 - A `credit` account is still a named pot. Paying it as cash-in is a `transfer`. Reducing its **debt** is a `repayment` whose `counterAccountId` is that account.
 
 ### Derived balance
@@ -136,7 +137,7 @@ balance(account A) =
         where kind.balanceEffect = transfer and counterAccountId = A)
 ```
 
-Only entries that apply given `openingAt` are included. Ignore kinds with `balanceEffect: none` (v1: `prepayment`). Do not persist this sum as the source of truth; a cached column is optional and must be rebuildable.
+Only **live** entries (`deletedAt` is null) that apply given `openingAt` are included. Ignore kinds with `balanceEffect: none` (v1: `prepayment`). Do not persist this sum as the source of truth; a cached column is optional and must be rebuildable.
 
 ### Derived debt
 
@@ -168,6 +169,7 @@ Same `openingAt` cutoff as balance. Debt may be negative if repayments exceed op
 | `archived` | Optional hide-from-picker. Delete-when-unused is the v1 requirement. |
 | `sortOrder` | Optional. |
 | `colorHex` | `#RRGGBB` for pie slices. Required on **mains**; null on subs (derive from parent). Seeded from [ui.md](ui.md). User-created mains get the next unused palette color at insert. The user may change a main’s color later by picking from the built-in 96-color palette. |
+| `deletedAt` | Null while live. Set when an unused category is moved to Trash. Deleting a main also sets `deletedAt` on its live unused children. Restoring a main restores those still-trashed children. |
 
 Rules:
 
@@ -176,8 +178,8 @@ Rules:
 - When `categoryId` is set, it must point at a **subcategory**. Same rule for `feeCategoryId`.
 - `categoryId` is **required** for every v1 kind, including `transfer` (classify the move; seed lives under Transfer). `feeCategoryId` is required only when a transfer has a fee.
 - Kind-specific category sets are **not** required in v1. The same tree is available to all kinds. Do not require `categoryId` to sit under the seeded Transfer main: the user may delete that main and use any sub.
-- **Delete a sub:** refuse if any posted or pending entry uses it as `categoryId` or `feeCategoryId`, or if it is `defaultFeeCategoryId`. Do not orphan FKs.
-- **Delete a main:** refuse unless every descendant is unused (and not `defaultFeeCategoryId`); then delete descendants with the main.
+- **Delete a sub:** refuse if any posted or pending entry uses it as `categoryId` or `feeCategoryId` (**including Trash**), or if it is `defaultFeeCategoryId`. Move to Trash; do not orphan FKs.
+- **Delete a main:** refuse unless every descendant is unused (and not `defaultFeeCategoryId`); then move the main and its **live** unused descendants to Trash together.
 - Seed `defaultFeeCategoryId` to Transfer → Transfer fee (`preset.category.transfer.fee`).
 - Pie colors: [ui.md](ui.md) palette; do not recompute randomly on each open.
 
@@ -214,6 +216,7 @@ The nullable **counterparty** slot is for two-account kinds (`transfer`, `repaym
 | `kindPayload` | JSON object; v1 kinds use `{ "v": 1 }`. |
 | `createdAt` | When the row was first saved (UTC). |
 | `updatedAt` | When the row was last edited (UTC). |
+| `deletedAt` | Null while live. Set when the entry is moved to Trash. Hidden from the ledger, reports, balances, debts, and CSV/TXT export until restored. Permanent delete from Trash removes the row. |
 
 `EntryTag` is a pair `(entryId, tagId)` with a unique constraint on the pair. Tag order on an entry is not significant in v1.
 
@@ -230,8 +233,9 @@ Imported rows wait here until the user posts them. They do **not** affect derive
 | `occurredAt` | Required event time (same clock as Entry). |
 | `kindId` / `accountId` / `counterAccountId` / `counterAmountMinor` / `categoryId` / `feeCategoryId` / `note` | Optional until the user fills them. Empty is stored as null. |
 | `createdAt` / `updatedAt` | Audit. |
+| `deletedAt` | Null while live in Pending. **Discard** sets it (Trash). **Post** hard-deletes the pending row after creating the entry. |
 
-`PendingEntryTag` is `(pendingEntryId, tagId)`. CSV import writes only `amountMinor` and `occurredAt`. **Post** copies a complete draft through `create_entry` validation, then deletes the pending row. **Discard** is a hard delete. Account and category usage counts include pending foreign keys.
+`PendingEntryTag` is `(pendingEntryId, tagId)`. CSV import writes only `amountMinor` and `occurredAt`. **Post** copies a complete draft through `create_entry` validation, then **hard-deletes** the pending row. **Discard** moves it to Trash. Account and category usage counts include pending foreign keys **including Trash**.
 
 ## Money
 

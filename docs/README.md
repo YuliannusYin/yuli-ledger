@@ -27,7 +27,7 @@ These files are the source of truth for Yuli Ledger. They describe *what* to bui
 | Money | Integer minor units, single currency CNY |
 | Time | Year / month / day / hour / minute |
 | Accounts | First-class; transfer also has a destination account |
-| Features | Record, pending CSV import, ledger, reports (week/month/year/custom), accounts, categories |
+| Features | Record, pending CSV import, ledger, reports (week/month/year/custom), accounts, categories, trash |
 | Look | Cold zinc instrument by default, compact, five skins × light/dark ([ui.md](ui.md)) |
 
 Out of v1: phone clients, network, sync, WeChat/Alipay/bank bill import, full double-entry, extra currencies, budgets, named-debt *entities*, prepayment settlement.
@@ -39,7 +39,7 @@ These are build and UX choices. They do not change entity shapes in [domain-mode
 - App version starts at `0.1.0` until a tagged roadmap v1 release.
 - Kind registry lives only in Rust. The UI loads `id` / `labelKey` / flags via `list_kinds`. SQLite has no `CHECK (kind_id IN (…))`.
 - Database path is always `%LOCALAPPDATA%\YuliLedger\ledger.sqlite` (not the Tauri bundle identifier folder). Tauri identifier is `com.yuliledger.desktop`.
-- `LedgerSettings` is a single row (`id = 1`) with `schema_version = 4`. Entity primary keys are UUIDs generated in Rust.
+- `LedgerSettings` is a single row (`id = 1`) with `schema_version = 5`. Entity primary keys are UUIDs generated in Rust.
 - Seed Default account: `openingAt = 1970-01-01T00:00:00Z`, `openingBalanceMinor = 0`, `accountKind = other`. Preset `name` is stored `NULL` until the user renames.
 - v1 does not add an `archived` column. Pickers and ledger filters use every existing account.
 - Creating a main category also inserts one child named Other / 其他 for the active UI language (`presetKey = null`).

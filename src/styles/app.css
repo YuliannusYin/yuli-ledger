@@ -628,6 +628,29 @@ button.swatch {
   align-items: center;
 }
 
+.trash-cols {
+  grid-template-columns:
+    48px
+    56px
+    minmax(72px, 0.7fr)
+    minmax(160px, 1.6fr)
+    minmax(80px, 1fr);
+}
+
+.meta-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  align-items: start;
+}
+
+.meta-row label {
+  color: var(--muted);
+  min-width: 88px;
+  flex-shrink: 0;
+}
+
 .ledger-head {
   position: sticky;
   top: 0;

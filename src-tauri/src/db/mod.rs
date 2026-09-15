@@ -3,6 +3,7 @@ mod pending;
 pub mod palette;
 mod schema;
 mod seed;
+mod trash;
 
 use std::path::{Path, PathBuf};
 
@@ -16,9 +17,10 @@ use crate::models::*;
 use crate::time_util;
 
 pub use pending::{
-    delete_pending_entry, insert_pending_row, list_pending_entries, pending_count,
-    post_pending_entry, update_pending_entry,
+    delete_pending_entry, insert_pending_row, list_pending_entries, list_pending_including_deleted,
+    pending_count, post_pending_entry, update_pending_entry,
 };
+pub use trash::{empty_trash, list_trash, purge_trash, restore_trash, trash_count};
 
 pub fn default_db_path() -> PathBuf {
     let local = std::env::var_os("LOCALAPPDATA")
@@ -57,7 +59,7 @@ pub fn list_accounts(conn: &Connection) -> Result<Vec<AccountDto>> {
     let entries = list_all_entry_rows(conn)?;
     let mut stmt = conn.prepare(
         "SELECT id, name, account_kind, opening_balance_minor, opening_debt_minor, opening_at, note, sort_order, preset_key
-         FROM account ORDER BY sort_order ASC, id ASC",
+         FROM account WHERE deleted_at IS NULL ORDER BY sort_order ASC, id ASC",
     )?;
     let rows = stmt.query_map([], |r| {
         Ok((
@@ -89,6 +91,7 @@ pub fn list_accounts(conn: &Connection) -> Result<Vec<AccountDto>> {
             preset_key,
             balance_minor,
             debt_minor,
+            deleted_at: None,
         });
     }
     Ok(out)
@@ -138,7 +141,7 @@ pub fn update_account(conn: &Connection, id: &str, write: AccountWrite) -> Resul
     let opening_at = time_util::format_utc_minute(time_util::parse_utc_minute(&write.opening_at)?);
     let n = conn.execute(
         "UPDATE account SET name = ?1, account_kind = ?2, opening_balance_minor = ?3, opening_debt_minor = ?4, opening_at = ?5, note = ?6
-         WHERE id = ?7",
+         WHERE id = ?7 AND deleted_at IS NULL",
         params![
             write.name.trim(),
             write.account_kind,
@@ -173,7 +176,11 @@ pub fn account_usage(conn: &Connection, id: &str) -> Result<i64> {
 }
 
 pub fn delete_account(conn: &Connection, id: &str) -> Result<()> {
-    let count: i64 = conn.query_row("SELECT COUNT(*) FROM account", [], |r| r.get(0))?;
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM account WHERE deleted_at IS NULL",
+        [],
+        |r| r.get(0),
+    )?;
     if count <= 1 {
         return Err(AppError::new("error.lastAccount"));
     }
@@ -188,11 +195,7 @@ pub fn delete_account(conn: &Connection, id: &str) -> Result<()> {
     if used > 0 {
         return Err(AppError::with_count("error.accountInUse", used));
     }
-    let n = conn.execute("DELETE FROM account WHERE id = ?1", [id])?;
-    if n == 0 {
-        return Err(AppError::new("error.accountNotFound"));
-    }
-    Ok(())
+    trash::mark_deleted(conn, "account", id, "error.accountNotFound")
 }
 
 pub fn reorder_accounts(conn: &Connection, ordered_ids: &[String]) -> Result<()> {
@@ -208,6 +211,7 @@ pub fn reorder_accounts(conn: &Connection, ordered_ids: &[String]) -> Result<()>
 pub fn list_categories(conn: &Connection) -> Result<Vec<CategoryDto>> {
     let mut stmt = conn.prepare(
         "SELECT id, parent_id, name, preset_key, sort_order, color_hex FROM category
+         WHERE deleted_at IS NULL
          ORDER BY parent_id IS NOT NULL, sort_order ASC, id ASC",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -218,13 +222,16 @@ pub fn list_categories(conn: &Connection) -> Result<Vec<CategoryDto>> {
             preset_key: r.get(3)?,
             sort_order: r.get(4)?,
             color_hex: r.get(5)?,
+            deleted_at: None,
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
 fn next_main_color(conn: &Connection) -> Result<String> {
-    let mut stmt = conn.prepare("SELECT color_hex FROM category WHERE parent_id IS NULL")?;
+    let mut stmt = conn.prepare(
+        "SELECT color_hex FROM category WHERE parent_id IS NULL AND deleted_at IS NULL",
+    )?;
     let used: Vec<String> = stmt
         .query_map([], |r| r.get(0))?
         .filter_map(|r| r.ok())
@@ -269,7 +276,7 @@ pub fn create_sub_category(conn: &Connection, parent_id: &str, name: &str) -> Re
     }
     let parent_is_root: Option<Option<String>> = conn
         .query_row(
-            "SELECT parent_id FROM category WHERE id = ?1",
+            "SELECT parent_id FROM category WHERE id = ?1 AND deleted_at IS NULL",
             [parent_id],
             |r| r.get(0),
         )
@@ -298,7 +305,11 @@ pub fn update_category_color(conn: &Connection, id: &str, color_hex: &str) -> Re
         return Err(AppError::new("error.colorInvalid"));
     }
     let parent: Option<Option<String>> = conn
-        .query_row("SELECT parent_id FROM category WHERE id = ?1", [id], |r| r.get(0))
+        .query_row(
+            "SELECT parent_id FROM category WHERE id = ?1 AND deleted_at IS NULL",
+            [id],
+            |r| r.get(0),
+        )
         .optional()?;
     match parent {
         None => return Err(AppError::new("error.categoryNotFound")),
@@ -306,7 +317,7 @@ pub fn update_category_color(conn: &Connection, id: &str, color_hex: &str) -> Re
         Some(None) => {}
     }
     conn.execute(
-        "UPDATE category SET color_hex = ?1 WHERE id = ?2",
+        "UPDATE category SET color_hex = ?1 WHERE id = ?2 AND deleted_at IS NULL",
         params![color, id],
     )?;
     list_categories(conn)
@@ -317,7 +328,10 @@ pub fn rename_category(conn: &Connection, id: &str, name: &str) -> Result<Vec<Ca
     if name.is_empty() {
         return Err(AppError::new("error.categoryNameRequired"));
     }
-    let n = conn.execute("UPDATE category SET name = ?1 WHERE id = ?2", params![name, id])?;
+    let n = conn.execute(
+        "UPDATE category SET name = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+        params![name, id],
+    )?;
     if n == 0 {
         return Err(AppError::new("error.categoryNotFound"));
     }
@@ -349,13 +363,20 @@ fn is_default_fee(conn: &Connection, id: &str) -> Result<bool> {
 
 pub fn delete_category(conn: &Connection, id: &str) -> Result<()> {
     let parent_id: Option<String> = conn
-        .query_row("SELECT parent_id FROM category WHERE id = ?1", [id], |r| r.get(0))
+        .query_row(
+            "SELECT parent_id FROM category WHERE id = ?1 AND deleted_at IS NULL",
+            [id],
+            |r| r.get(0),
+        )
         .optional()?
         .ok_or_else(|| AppError::new("error.categoryNotFound"))?;
 
+    let now = time_util::now_utc_minute();
     if parent_id.is_none() {
         let mut child_ids = Vec::new();
-        let mut stmt = conn.prepare("SELECT id FROM category WHERE parent_id = ?1")?;
+        let mut stmt = conn.prepare(
+            "SELECT id FROM category WHERE parent_id = ?1 AND deleted_at IS NULL",
+        )?;
         let rows = stmt.query_map([id], |r| r.get::<_, String>(0))?;
         for row in rows {
             child_ids.push(row?);
@@ -370,9 +391,15 @@ pub fn delete_category(conn: &Connection, id: &str) -> Result<()> {
             }
         }
         for child in &child_ids {
-            conn.execute("DELETE FROM category WHERE id = ?1", [child])?;
+            conn.execute(
+                "UPDATE category SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+                params![now, child],
+            )?;
         }
-        conn.execute("DELETE FROM category WHERE id = ?1", [id])?;
+        conn.execute(
+            "UPDATE category SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+            params![now, id],
+        )?;
         Ok(())
     } else {
         if is_default_fee(conn, id)? {
@@ -382,8 +409,7 @@ pub fn delete_category(conn: &Connection, id: &str) -> Result<()> {
         if used > 0 {
             return Err(AppError::with_count("error.categoryInUse", used));
         }
-        conn.execute("DELETE FROM category WHERE id = ?1", [id])?;
-        Ok(())
+        trash::mark_deleted(conn, "category", id, "error.categoryNotFound")
     }
 }
 
@@ -463,7 +489,11 @@ pub(super) fn upsert_tags(conn: &Connection, entry_id: &str, names: &[String]) -
 
 pub(super) fn require_subcategory(conn: &Connection, id: &str) -> Result<()> {
     let parent: Option<String> = conn
-        .query_row("SELECT parent_id FROM category WHERE id = ?1", [id], |r| r.get(0))
+        .query_row(
+            "SELECT parent_id FROM category WHERE id = ?1 AND deleted_at IS NULL",
+            [id],
+            |r| r.get(0),
+        )
         .optional()?
         .ok_or_else(|| AppError::new("error.categoryNotFound"))?;
     if parent.is_none() {
@@ -473,7 +503,11 @@ pub(super) fn require_subcategory(conn: &Connection, id: &str) -> Result<()> {
 }
 
 pub(super) fn require_account(conn: &Connection, id: &str) -> Result<()> {
-    let n: i64 = conn.query_row("SELECT COUNT(*) FROM account WHERE id = ?1", [id], |r| r.get(0))?;
+    let n: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM account WHERE id = ?1 AND deleted_at IS NULL",
+        [id],
+        |r| r.get(0),
+    )?;
     if n == 0 {
         return Err(AppError::new("error.accountNotFound"));
     }
@@ -508,7 +542,7 @@ pub fn list_all_entry_rows(conn: &Connection) -> Result<Vec<EntryRow>> {
     let mut stmt = conn.prepare(
         "SELECT id, kind_id, amount_minor, occurred_at, account_id, counter_account_id,
                 counter_amount_minor, category_id, fee_category_id, note, kind_payload,
-                created_at, updated_at FROM entry",
+                created_at, updated_at FROM entry WHERE deleted_at IS NULL",
     )?;
     let rows = stmt.query_map([], map_entry_row)?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -531,6 +565,7 @@ fn to_dto(conn: &Connection, row: EntryRow) -> Result<EntryDto> {
         created_at: row.created_at,
         updated_at: row.updated_at,
         tag_ids,
+        deleted_at: None,
     })
 }
 
@@ -538,7 +573,7 @@ pub fn get_entry(conn: &Connection, id: &str) -> Result<EntryDto> {
     let mut stmt = conn.prepare(
         "SELECT id, kind_id, amount_minor, occurred_at, account_id, counter_account_id,
                 counter_amount_minor, category_id, fee_category_id, note, kind_payload,
-                created_at, updated_at FROM entry WHERE id = ?1",
+                created_at, updated_at FROM entry WHERE id = ?1 AND deleted_at IS NULL",
     )?;
     let row = stmt
         .query_row([id], map_entry_row)
@@ -602,7 +637,7 @@ pub fn update_entry(conn: &mut Connection, id: &str, mut input: EntryWrite) -> R
     if registry::get(&existing.kind_id).is_none() && input.kind_id == existing.kind_id {
         let tx = conn.transaction()?;
         tx.execute(
-            "UPDATE entry SET note = ?1, updated_at = ?2 WHERE id = ?3",
+            "UPDATE entry SET note = ?1, updated_at = ?2 WHERE id = ?3 AND deleted_at IS NULL",
             params![input.note, time_util::now_utc_minute(), id],
         )?;
         upsert_tags(&tx, id, &input.tag_names)?;
@@ -619,7 +654,7 @@ pub fn update_entry(conn: &mut Connection, id: &str, mut input: EntryWrite) -> R
             kind_id = ?1, amount_minor = ?2, occurred_at = ?3, account_id = ?4,
             counter_account_id = ?5, counter_amount_minor = ?6, category_id = ?7,
             fee_category_id = ?8, note = ?9, kind_payload = ?10, updated_at = ?11
-         WHERE id = ?12",
+         WHERE id = ?12 AND deleted_at IS NULL",
         params![
             input.kind_id,
             input.amount_minor,
@@ -644,11 +679,7 @@ pub fn update_entry(conn: &mut Connection, id: &str, mut input: EntryWrite) -> R
 }
 
 pub fn delete_entry(conn: &Connection, id: &str) -> Result<()> {
-    let n = conn.execute("DELETE FROM entry WHERE id = ?1", [id])?;
-    if n == 0 {
-        return Err(AppError::new("error.entryNotFound"));
-    }
-    Ok(())
+    trash::mark_deleted(conn, "entry", id, "error.entryNotFound")
 }
 
 pub fn list_entries(conn: &Connection, filter: &LedgerFilter) -> Result<Vec<EntryDto>> {
@@ -663,24 +694,20 @@ pub fn list_entries(conn: &Connection, filter: &LedgerFilter) -> Result<Vec<Entr
     let mut sql = String::from(
         "SELECT id, kind_id, amount_minor, occurred_at, account_id, counter_account_id,
                 counter_amount_minor, category_id, fee_category_id, note, kind_payload,
-                created_at, updated_at FROM entry",
+                created_at, updated_at FROM entry WHERE deleted_at IS NULL",
     );
     let mut binds: Vec<String> = Vec::new();
     if let Some(from) = from {
         let start = time_util::format_utc_minute(time_util::local_date_start_utc(from));
         binds.push(start);
-        sql.push_str(&format!(" WHERE occurred_at >= ?{}", binds.len()));
+        sql.push_str(&format!(" AND occurred_at >= ?{}", binds.len()));
     }
     if let Some(to) = to {
         let end = time_util::local_date_end_utc(to)
             .format("%Y-%m-%dT%H:%M:%SZ")
             .to_string();
         binds.push(end);
-        if binds.len() == 1 {
-            sql.push_str(" WHERE occurred_at <= ?1");
-        } else {
-            sql.push_str(" AND occurred_at <= ?2");
-        }
+        sql.push_str(&format!(" AND occurred_at <= ?{}", binds.len()));
     }
     sql.push_str(" ORDER BY occurred_at DESC, created_at DESC, id DESC");
 
@@ -746,15 +773,104 @@ pub fn list_entries(conn: &Connection, filter: &LedgerFilter) -> Result<Vec<Entr
     Ok(out)
 }
 
+pub fn list_accounts_including_deleted(conn: &Connection) -> Result<Vec<AccountDto>> {
+    let entries = list_all_entry_rows(conn)?;
+    let mut stmt = conn.prepare(
+        "SELECT id, name, account_kind, opening_balance_minor, opening_debt_minor, opening_at, note, sort_order, preset_key, deleted_at
+         FROM account ORDER BY sort_order ASC, id ASC",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, Option<String>>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, i64>(3)?,
+            r.get::<_, i64>(4)?,
+            r.get::<_, String>(5)?,
+            r.get::<_, Option<String>>(6)?,
+            r.get::<_, i32>(7)?,
+            r.get::<_, Option<String>>(8)?,
+            r.get::<_, Option<String>>(9)?,
+        ))
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        let (id, name, account_kind, opening, opening_debt, opening_at, note, sort_order, preset_key, deleted_at) =
+            row?;
+        let balance_minor = balance::balance_for_account(opening, &opening_at, &id, &entries);
+        let debt_minor = balance::debt_for_account(opening_debt, &opening_at, &id, &entries);
+        out.push(AccountDto {
+            id,
+            name,
+            account_kind,
+            opening_balance_minor: opening,
+            opening_debt_minor: opening_debt,
+            opening_at,
+            note,
+            sort_order,
+            preset_key,
+            balance_minor,
+            debt_minor,
+            deleted_at,
+        });
+    }
+    Ok(out)
+}
+
+pub fn list_categories_including_deleted(conn: &Connection) -> Result<Vec<CategoryDto>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, parent_id, name, preset_key, sort_order, color_hex, deleted_at FROM category
+         ORDER BY parent_id IS NOT NULL, sort_order ASC, id ASC",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        Ok(CategoryDto {
+            id: r.get(0)?,
+            parent_id: r.get(1)?,
+            name: r.get(2)?,
+            preset_key: r.get(3)?,
+            sort_order: r.get(4)?,
+            color_hex: r.get(5)?,
+            deleted_at: r.get(6)?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+pub fn list_entries_including_deleted(conn: &Connection) -> Result<Vec<EntryDto>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, kind_id, amount_minor, occurred_at, account_id, counter_account_id,
+                counter_amount_minor, category_id, fee_category_id, note, kind_payload,
+                created_at, updated_at, deleted_at FROM entry
+         ORDER BY occurred_at DESC, created_at DESC, id DESC",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        Ok((map_entry_row(r)?, r.get::<_, Option<String>>(13)?))
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        let (entry, deleted_at) = row?;
+        let mut dto = to_dto(conn, entry)?;
+        dto.deleted_at = deleted_at;
+        out.push(dto);
+    }
+    Ok(out)
+}
+
 fn category_match_ids(conn: &Connection, id: &str) -> Result<Vec<String>> {
     let parent: Option<String> = conn
-        .query_row("SELECT parent_id FROM category WHERE id = ?1", [id], |r| r.get(0))
+        .query_row(
+            "SELECT parent_id FROM category WHERE id = ?1 AND deleted_at IS NULL",
+            [id],
+            |r| r.get(0),
+        )
         .optional()?
         .ok_or_else(|| AppError::new("error.categoryNotFound"))?;
     if parent.is_some() {
         return Ok(vec![id.to_string()]);
     }
-    let mut stmt = conn.prepare("SELECT id FROM category WHERE parent_id = ?1")?;
+    let mut stmt = conn.prepare(
+        "SELECT id FROM category WHERE parent_id = ?1 AND deleted_at IS NULL",
+    )?;
     let rows = stmt.query_map([id], |r| r.get::<_, String>(0))?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
@@ -904,6 +1020,102 @@ mod tests {
     }
 
     #[test]
+    fn migrates_existing_file_missing_deleted_at() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ledger.sqlite");
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch(
+                r#"
+                PRAGMA foreign_keys = ON;
+                CREATE TABLE account (
+                  id TEXT PRIMARY KEY,
+                  name TEXT,
+                  account_kind TEXT NOT NULL,
+                  opening_balance_minor INTEGER NOT NULL,
+                  opening_debt_minor INTEGER NOT NULL DEFAULT 0,
+                  opening_at TEXT NOT NULL,
+                  note TEXT,
+                  sort_order INTEGER NOT NULL,
+                  preset_key TEXT
+                );
+                CREATE TABLE category (
+                  id TEXT PRIMARY KEY,
+                  parent_id TEXT REFERENCES category(id),
+                  name TEXT,
+                  preset_key TEXT,
+                  sort_order INTEGER NOT NULL,
+                  color_hex TEXT
+                );
+                CREATE TABLE tag (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+                CREATE TABLE ledger_settings (
+                  id INTEGER PRIMARY KEY CHECK (id = 1),
+                  currency_code TEXT NOT NULL,
+                  default_account_id TEXT NOT NULL REFERENCES account(id),
+                  schema_version INTEGER NOT NULL
+                );
+                CREATE TABLE entry (
+                  id TEXT PRIMARY KEY,
+                  kind_id TEXT NOT NULL,
+                  amount_minor INTEGER NOT NULL,
+                  occurred_at TEXT NOT NULL,
+                  account_id TEXT NOT NULL REFERENCES account(id),
+                  counter_account_id TEXT REFERENCES account(id),
+                  counter_amount_minor INTEGER,
+                  category_id TEXT NOT NULL REFERENCES category(id),
+                  fee_category_id TEXT REFERENCES category(id),
+                  note TEXT,
+                  kind_payload TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  updated_at TEXT NOT NULL
+                );
+                CREATE TABLE pending_entry (
+                  id TEXT PRIMARY KEY,
+                  amount_minor INTEGER NOT NULL,
+                  occurred_at TEXT NOT NULL,
+                  kind_id TEXT,
+                  account_id TEXT REFERENCES account(id),
+                  counter_account_id TEXT REFERENCES account(id),
+                  counter_amount_minor INTEGER,
+                  category_id TEXT REFERENCES category(id),
+                  fee_category_id TEXT REFERENCES category(id),
+                  note TEXT,
+                  created_at TEXT NOT NULL,
+                  updated_at TEXT NOT NULL
+                );
+                INSERT INTO account (id, name, account_kind, opening_balance_minor, opening_debt_minor, opening_at, note, sort_order, preset_key)
+                VALUES ('a1', 'Cash', 'cash', 0, 0, '1970-01-01T00:00:00Z', NULL, 0, NULL);
+                INSERT INTO ledger_settings (id, currency_code, default_account_id, schema_version)
+                VALUES (1, 'CNY', 'a1', 4);
+                "#,
+            )
+            .unwrap();
+        }
+        let conn = open_at(&path).unwrap();
+        let version: i32 = conn
+            .query_row("SELECT schema_version FROM ledger_settings WHERE id = 1", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, 5);
+        for (table, col) in [
+            ("account", "deleted_at"),
+            ("category", "deleted_at"),
+            ("entry", "deleted_at"),
+            ("pending_entry", "deleted_at"),
+        ] {
+            let n: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM pragma_table_info(?1) WHERE name = ?2",
+                    rusqlite::params![table, col],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(n, 1, "{table}.{col}");
+        }
+        assert_eq!(list_accounts(&conn).unwrap().len(), 1);
+        assert_eq!(trash_count(&conn).unwrap(), 0);
+    }
+
+    #[test]
     fn seeds_default_and_tree() {
         let db = temp_conn();
         let conn = &db.conn;
@@ -914,7 +1126,7 @@ mod tests {
         assert!(cats.iter().any(|c| c.preset_key.as_deref() == Some("preset.category.transfer.fee")));
         let settings = get_settings(&conn).unwrap();
         assert_eq!(settings.currency_code, "CNY");
-        assert_eq!(settings.schema_version, 4);
+        assert_eq!(settings.schema_version, 5);
         assert_eq!(settings.ui_theme, None);
         assert!(cats
             .iter()
@@ -1337,6 +1549,209 @@ mod tests {
                 .unwrap_err()
                 .code,
             "error.categoryNotFound"
+        );
+    }
+
+    fn table_count(conn: &Connection, table: &str) -> i64 {
+        conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0))
+            .unwrap()
+    }
+
+    #[test]
+    fn delete_entry_goes_to_trash_and_leaves_balances() {
+        let mut db = temp_conn();
+        let account = list_accounts(&db.conn).unwrap().pop().unwrap();
+        let food = category_id_by_preset(&db.conn, "preset.category.food.dining").unwrap();
+        let entry = create_entry(
+            &mut db.conn,
+            EntryWrite {
+                kind_id: "expense".into(),
+                amount_minor: 1250,
+                occurred_at: "2026-09-09T12:00:00Z".into(),
+                account_id: account.id.clone(),
+                counter_account_id: None,
+                counter_amount_minor: None,
+                category_id: food,
+                fee_category_id: None,
+                note: None,
+                tag_names: vec![],
+                kind_payload: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            list_accounts(&db.conn)
+                .unwrap()
+                .into_iter()
+                .find(|a| a.id == account.id)
+                .unwrap()
+                .balance_minor,
+            -1250
+        );
+        delete_entry(&db.conn, &entry.id).unwrap();
+        assert!(list_all_entry_rows(&db.conn).unwrap().is_empty());
+        assert_eq!(table_count(&db.conn, "entry"), 1);
+        assert_eq!(
+            list_accounts(&db.conn)
+                .unwrap()
+                .into_iter()
+                .find(|a| a.id == account.id)
+                .unwrap()
+                .balance_minor,
+            0
+        );
+        let trash = list_trash(&db.conn).unwrap();
+        assert_eq!(trash.len(), 1);
+        assert_eq!(trash[0].item_kind, "entry");
+        restore_trash(&db.conn, "entry", &entry.id).unwrap();
+        assert_eq!(list_all_entry_rows(&db.conn).unwrap().len(), 1);
+        assert_eq!(list_trash(&db.conn).unwrap().len(), 0);
+        delete_entry(&db.conn, &entry.id).unwrap();
+        purge_trash(&db.conn, "entry", &entry.id).unwrap();
+        assert_eq!(table_count(&db.conn, "entry"), 0);
+    }
+
+    #[test]
+    fn discard_pending_trashes_but_post_destroys() {
+        let mut db = temp_conn();
+        let discarded = insert_pending_row(&db.conn, 100, "2026-09-14T04:30:00Z").unwrap();
+        delete_pending_entry(&db.conn, &discarded).unwrap();
+        assert_eq!(pending_count(&db.conn).unwrap(), 0);
+        assert_eq!(table_count(&db.conn, "pending_entry"), 1);
+        assert_eq!(list_trash(&db.conn).unwrap()[0].item_kind, "pending");
+
+        let posted = insert_pending_row(&db.conn, 1250, "2026-09-14T04:30:00Z").unwrap();
+        let cash = list_accounts(&db.conn).unwrap().pop().unwrap();
+        let food = category_id_by_preset(&db.conn, "preset.category.food.dining").unwrap();
+        update_pending_entry(
+            &mut db.conn,
+            &posted,
+            PendingEntryWrite {
+                amount_minor: 1250,
+                occurred_at: "2026-09-14T04:30:00Z".into(),
+                kind_id: Some("expense".into()),
+                account_id: Some(cash.id),
+                counter_account_id: None,
+                counter_amount_minor: None,
+                category_id: Some(food),
+                fee_category_id: None,
+                note: None,
+                tag_names: vec![],
+            },
+        )
+        .unwrap();
+        post_pending_entry(&mut db.conn, &posted).unwrap();
+        assert_eq!(pending_count(&db.conn).unwrap(), 0);
+        assert_eq!(table_count(&db.conn, "pending_entry"), 1);
+        assert_eq!(list_all_entry_rows(&db.conn).unwrap().len(), 1);
+        assert_eq!(
+            list_trash(&db.conn)
+                .unwrap()
+                .iter()
+                .filter(|i| i.item_kind == "pending")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn unused_account_trashes_but_occupied_and_last_live_do_not() {
+        let mut db = temp_conn();
+        let live = list_accounts(&db.conn).unwrap().pop().unwrap();
+        let extra = create_account(
+            &db.conn,
+            AccountWrite {
+                name: "Spare".into(),
+                account_kind: "cash".into(),
+                opening_balance_minor: 0,
+                opening_debt_minor: 0,
+                opening_at: time_util::OPENING_EPOCH.into(),
+                note: None,
+            },
+        )
+        .unwrap();
+        delete_account(&db.conn, &extra.id).unwrap();
+        assert_eq!(list_accounts(&db.conn).unwrap().len(), 1);
+        assert_eq!(table_count(&db.conn, "account"), 2);
+        assert_eq!(
+            delete_account(&db.conn, &live.id).unwrap_err().code,
+            "error.lastAccount"
+        );
+        restore_trash(&db.conn, "account", &extra.id).unwrap();
+        assert_eq!(list_accounts(&db.conn).unwrap().len(), 2);
+
+        let food = category_id_by_preset(&db.conn, "preset.category.food.dining").unwrap();
+        let entry = create_entry(
+            &mut db.conn,
+            EntryWrite {
+                kind_id: "expense".into(),
+                amount_minor: 100,
+                occurred_at: "2026-09-09T12:00:00Z".into(),
+                account_id: extra.id.clone(),
+                counter_account_id: None,
+                counter_amount_minor: None,
+                category_id: food,
+                fee_category_id: None,
+                note: None,
+                tag_names: vec![],
+                kind_payload: None,
+            },
+        )
+        .unwrap();
+        delete_entry(&db.conn, &entry.id).unwrap();
+        assert_eq!(
+            delete_account(&db.conn, &extra.id).unwrap_err().code,
+            "error.accountInUse"
+        );
+        empty_trash(&mut db.conn).unwrap();
+        assert_eq!(list_trash(&db.conn).unwrap().len(), 0);
+        assert_eq!(table_count(&db.conn, "entry"), 0);
+        delete_account(&db.conn, &extra.id).unwrap();
+        empty_trash(&mut db.conn).unwrap();
+        assert_eq!(table_count(&db.conn, "account"), 1);
+    }
+
+    #[test]
+    fn delete_main_category_trashes_children_and_restore_brings_them_back() {
+        let db = temp_conn();
+        let mains = list_categories(&db.conn)
+            .unwrap()
+            .into_iter()
+            .filter(|c| c.parent_id.is_none())
+            .collect::<Vec<_>>();
+        let misc = mains
+            .iter()
+            .find(|c| c.preset_key.as_deref() == Some("preset.category.misc"))
+            .cloned()
+            .unwrap();
+        let child_count = list_categories(&db.conn)
+            .unwrap()
+            .iter()
+            .filter(|c| c.parent_id.as_deref() == Some(misc.id.as_str()))
+            .count();
+        assert!(child_count > 0);
+        delete_category(&db.conn, &misc.id).unwrap();
+        assert!(!list_categories(&db.conn)
+            .unwrap()
+            .iter()
+            .any(|c| c.id == misc.id));
+        let trash = list_trash(&db.conn).unwrap();
+        assert!(trash.iter().any(|i| i.id == misc.id && i.item_kind == "category"));
+        assert_eq!(
+            trash
+                .iter()
+                .filter(|i| i.item_kind == "category" && i.parent_id.as_deref() == Some(misc.id.as_str()))
+                .count(),
+            child_count
+        );
+        restore_trash(&db.conn, "category", &misc.id).unwrap();
+        assert_eq!(
+            list_categories(&db.conn)
+                .unwrap()
+                .iter()
+                .filter(|c| c.parent_id.as_deref() == Some(misc.id.as_str()))
+                .count(),
+            child_count
         );
     }
 }

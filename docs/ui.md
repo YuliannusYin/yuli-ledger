@@ -34,7 +34,7 @@ flowchart LR
 ```
 
 - **Window:** default about 1280×800; minimum about 960×640; remember size and position.
-- **Nav rail (left, ~200px, collapsible to icons):** Record, Pending, Ledger, Reports, Accounts, Categories, Settings. Current item: hairline + slight zinc fill, not a bright pill. Pending shows a count badge when the inbox is non-empty.
+- **Nav rail (left, ~200px, collapsible to icons):** Record, Pending, Ledger, Reports, Accounts, Categories, Trash, Settings. Current item: hairline + slight zinc fill, not a bright pill. Pending and Trash show a count badge when non-empty.
 - **Main:** one working surface. No extra app header besides the window title bar.
 - **Record** is its own nav item and the fastest path (`Ctrl+N` focuses Record even from elsewhere).
 - Ledger **inspector:** selecting a row opens a right pane (~320px) for detail/edit/delete. Do not navigate away to a second full page for v1 detail.
@@ -168,6 +168,10 @@ Job: under a minute, preferably **one glance + keyboard**.
 - Row hover: slight surface shift. Selected row: hairline inside the row + inspector open.
 - Empty: one muted sentence + control to go to Record. No illustration.
 
+## Trash
+
+Same zinc list + inspector as Ledger, grouped by local date of `deletedAt`. Type filter chips (all / entries / pending / accounts / categories). Inspector is **read-only** summary plus Restore and Delete permanently. Toolbar: Empty Trash. Count badge on the nav item when non-empty.
+
 ## Pending
 
 Same zinc list + inspector as Ledger. Toolbar: download CSV template, import CSV, pending count. Rows start with amount and time only; kind/account/category may show “unset”. Inspector uses the Record form with empty options. Actions: save draft, post, discard. Import lives here, not in Settings.
@@ -202,7 +206,7 @@ Quiet list: language, **theme (five preview cards)**, color scheme, default acco
 |----------|--------|
 | `Ctrl+N` | Go to Record, focus amount |
 | `Ctrl+Enter` | Save on Record / inspector edit |
-| `Ctrl+1` … `Ctrl+7` | Nav: Record, Pending, Ledger, Reports, Accounts, Categories, Settings |
+| `Ctrl+1` … `Ctrl+8` | Nav: Record, Pending, Ledger, Reports, Accounts, Categories, Trash, Settings |
 | `[` / `]` | Reports: previous / next period (week, month, year) |
 | `Esc` | Close inspector; clear filter popovers |
 | `Delete` | Delete in inspector after the same confirm as the button |

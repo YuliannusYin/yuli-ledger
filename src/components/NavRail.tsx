@@ -8,6 +8,7 @@ const ICONS: Record<ScreenId, string> = {
   reports: "P",
   accounts: "A",
   categories: "C",
+  trash: "T",
   settings: "S",
 };
 
@@ -15,12 +16,14 @@ export default function NavRail({
   screen,
   collapsed,
   pendingCount,
+  trashCount,
   onScreen,
   onToggle,
 }: {
   screen: ScreenId;
   collapsed: boolean;
   pendingCount: number;
+  trashCount: number;
   onScreen: (id: ScreenId) => void;
   onToggle: () => void;
 }) {
@@ -39,6 +42,9 @@ export default function NavRail({
           {!collapsed && t(`nav.${id}`)}
           {id === "pending" && pendingCount > 0 && (
             <span className="rail-badge">{pendingCount > 99 ? "99+" : pendingCount}</span>
+          )}
+          {id === "trash" && trashCount > 0 && (
+            <span className="rail-badge">{trashCount > 99 ? "99+" : trashCount}</span>
           )}
         </button>
       ))}

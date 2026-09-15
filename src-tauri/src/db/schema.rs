@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS account (
   opening_at TEXT NOT NULL,
   note TEXT,
   sort_order INTEGER NOT NULL,
-  preset_key TEXT
+  preset_key TEXT,
+  deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS category (
@@ -19,7 +20,8 @@ CREATE TABLE IF NOT EXISTS category (
   name TEXT,
   preset_key TEXT,
   sort_order INTEGER NOT NULL,
-  color_hex TEXT
+  color_hex TEXT,
+  deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS tag (
@@ -63,7 +65,8 @@ CREATE TABLE IF NOT EXISTS entry (
   note TEXT,
   kind_payload TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS entry_tag (
@@ -92,7 +95,8 @@ CREATE TABLE IF NOT EXISTS pending_entry (
   fee_category_id TEXT REFERENCES category(id),
   note TEXT,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS pending_entry_tag (
@@ -118,7 +122,8 @@ CREATE TABLE IF NOT EXISTS pending_entry (
   fee_category_id TEXT REFERENCES category(id),
   note TEXT,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS pending_entry_tag (
@@ -131,4 +136,11 @@ CREATE INDEX IF NOT EXISTS idx_pending_entry_occurred_at ON pending_entry (occur
 CREATE INDEX IF NOT EXISTS idx_pending_entry_tag_tag ON pending_entry_tag (tag_id);
 "#;
 
-pub const SCHEMA_VERSION: i32 = 4;
+pub const TRASH_INDEXES: &str = r#"
+CREATE INDEX IF NOT EXISTS idx_entry_deleted_at ON entry (deleted_at);
+CREATE INDEX IF NOT EXISTS idx_pending_entry_deleted_at ON pending_entry (deleted_at);
+CREATE INDEX IF NOT EXISTS idx_account_deleted_at ON account (deleted_at);
+CREATE INDEX IF NOT EXISTS idx_category_deleted_at ON category (deleted_at);
+"#;
+
+pub const SCHEMA_VERSION: i32 = 5;

@@ -15,6 +15,8 @@ import type {
   PendingEntryDto,
   PendingEntryWrite,
   ImportPendingResult,
+  TrashItemDto,
+  TrashItemKind,
 } from "./types";
 
 export async function api<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -90,3 +92,9 @@ export const importPendingCsv = (path: string) =>
   api<ImportPendingResult>("import_pending_csv", { path });
 export const writePendingCsvTemplate = (path: string) =>
   api<void>("write_pending_csv_template", { path });
+export const listTrash = () => api<TrashItemDto[]>("list_trash");
+export const restoreTrash = (itemKind: TrashItemKind, id: string) =>
+  api<void>("restore_trash", { itemKind, id });
+export const purgeTrash = (itemKind: TrashItemKind, id: string) =>
+  api<void>("purge_trash", { itemKind, id });
+export const emptyTrash = () => api<void>("empty_trash");

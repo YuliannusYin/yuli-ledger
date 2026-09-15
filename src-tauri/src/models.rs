@@ -33,6 +33,8 @@ pub struct AccountDto {
     pub preset_key: Option<String>,
     pub balance_minor: i64,
     pub debt_minor: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,6 +46,8 @@ pub struct CategoryDto {
     pub preset_key: Option<String>,
     pub sort_order: i32,
     pub color_hex: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,6 +96,8 @@ pub struct EntryDto {
     pub created_at: String,
     pub updated_at: String,
     pub tag_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -127,6 +133,8 @@ pub struct PendingEntryDto {
     pub created_at: String,
     pub updated_at: String,
     pub tag_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -269,6 +277,29 @@ pub struct BootstrapDto {
     pub system_language: Option<String>,
     pub category_palette: Vec<String>,
     pub pending_count: i64,
+    pub trash_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrashItemDto {
+    pub item_kind: String,
+    pub id: String,
+    pub deleted_at: String,
+    pub kind_id: Option<String>,
+    pub amount_minor: Option<i64>,
+    pub occurred_at: Option<String>,
+    pub account_id: Option<String>,
+    pub counter_account_id: Option<String>,
+    pub counter_amount_minor: Option<i64>,
+    pub category_id: Option<String>,
+    pub fee_category_id: Option<String>,
+    pub note: Option<String>,
+    pub name: Option<String>,
+    pub parent_id: Option<String>,
+    pub preset_key: Option<String>,
+    pub account_kind: Option<String>,
+    pub tag_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

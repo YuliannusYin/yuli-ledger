@@ -8,6 +8,7 @@ import LedgerScreen from "./screens/LedgerScreen";
 import ReportsScreen from "./screens/ReportsScreen";
 import AccountsScreen from "./screens/AccountsScreen";
 import CategoriesScreen from "./screens/CategoriesScreen";
+import TrashScreen from "./screens/TrashScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import { getBootstrap } from "./lib/api";
 import { applyAppearance, resolvedTheme } from "./lib/themes";
@@ -100,6 +101,7 @@ export default function App() {
           screen={screen}
           collapsed={collapsed}
           pendingCount={data.pendingCount}
+          trashCount={data.trashCount}
           onScreen={setScreen}
           onToggle={() => setCollapsed((v) => !v)}
         />
@@ -165,6 +167,16 @@ export default function App() {
             <CategoriesScreen
               categories={data.categories}
               palette={data.categoryPalette}
+              locale={locale}
+              onChanged={reload}
+            />
+          )}
+          {screen === "trash" && (
+            <TrashScreen
+              kinds={data.kinds}
+              accounts={data.accounts}
+              categories={data.categories}
+              tags={data.tags}
               locale={locale}
               onChanged={reload}
             />

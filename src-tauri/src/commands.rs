@@ -47,6 +47,7 @@ pub fn get_bootstrap(state: State<DbState>) -> Result<BootstrapDto> {
         system_language: db::system_language(),
         category_palette: db::palette::all(),
         pending_count: db::pending_count(&conn)?,
+        trash_count: db::trash_count(&conn)?,
     })
 }
 
@@ -279,4 +280,28 @@ pub fn import_pending_csv(state: State<DbState>, path: String) -> Result<ImportP
 #[tauri::command]
 pub fn write_pending_csv_template(path: String) -> Result<()> {
     import::write_pending_template(&path)
+}
+
+#[tauri::command]
+pub fn list_trash(state: State<DbState>) -> Result<Vec<TrashItemDto>> {
+    let conn = lock(&state)?;
+    db::list_trash(&conn)
+}
+
+#[tauri::command]
+pub fn restore_trash(state: State<DbState>, item_kind: String, id: String) -> Result<()> {
+    let conn = lock(&state)?;
+    db::restore_trash(&conn, &item_kind, &id)
+}
+
+#[tauri::command]
+pub fn purge_trash(state: State<DbState>, item_kind: String, id: String) -> Result<()> {
+    let conn = lock(&state)?;
+    db::purge_trash(&conn, &item_kind, &id)
+}
+
+#[tauri::command]
+pub fn empty_trash(state: State<DbState>) -> Result<()> {
+    let mut conn = lock(&state)?;
+    db::empty_trash(&mut conn)
 }

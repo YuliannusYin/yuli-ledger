@@ -8,8 +8,12 @@ use crate::time_util;
 use super::{create_entry, empty_to_none, new_id, require_account, require_subcategory};
 
 pub fn pending_count(conn: &Connection) -> Result<i64> {
-    conn.query_row("SELECT COUNT(*) FROM pending_entry", [], |r| r.get(0))
-        .map_err(Into::into)
+    conn.query_row(
+        "SELECT COUNT(*) FROM pending_entry WHERE deleted_at IS NULL",
+        [],
+        |r| r.get(0),
+    )
+    .map_err(Into::into)
 }
 
 pub fn list_pending_entries(conn: &Connection) -> Result<Vec<PendingEntryDto>> {
@@ -17,6 +21,7 @@ pub fn list_pending_entries(conn: &Connection) -> Result<Vec<PendingEntryDto>> {
         "SELECT id, amount_minor, occurred_at, kind_id, account_id, counter_account_id,
                 counter_amount_minor, category_id, fee_category_id, note, created_at, updated_at
          FROM pending_entry
+         WHERE deleted_at IS NULL
          ORDER BY occurred_at DESC, created_at DESC, id DESC",
     )?;
     let rows = stmt.query_map([], map_pending_row)?;
@@ -31,7 +36,7 @@ pub fn get_pending_entry(conn: &Connection, id: &str) -> Result<PendingEntryDto>
     let mut stmt = conn.prepare(
         "SELECT id, amount_minor, occurred_at, kind_id, account_id, counter_account_id,
                 counter_amount_minor, category_id, fee_category_id, note, created_at, updated_at
-         FROM pending_entry WHERE id = ?1",
+         FROM pending_entry WHERE id = ?1 AND deleted_at IS NULL",
     )?;
     let row = stmt
         .query_row([id], map_pending_row)
@@ -72,7 +77,7 @@ pub fn update_pending_entry(
             amount_minor = ?1, occurred_at = ?2, kind_id = ?3, account_id = ?4,
             counter_account_id = ?5, counter_amount_minor = ?6, category_id = ?7,
             fee_category_id = ?8, note = ?9, updated_at = ?10
-         WHERE id = ?11",
+         WHERE id = ?11 AND deleted_at IS NULL",
         params![
             input.amount_minor,
             occurred,
@@ -96,6 +101,10 @@ pub fn update_pending_entry(
 }
 
 pub fn delete_pending_entry(conn: &Connection, id: &str) -> Result<()> {
+    super::trash::mark_deleted(conn, "pending_entry", id, "error.pendingNotFound")
+}
+
+pub fn destroy_pending_entry(conn: &Connection, id: &str) -> Result<()> {
     let n = conn.execute("DELETE FROM pending_entry WHERE id = ?1", [id])?;
     if n == 0 {
         return Err(AppError::new("error.pendingNotFound"));
@@ -107,7 +116,7 @@ pub fn post_pending_entry(conn: &mut Connection, id: &str) -> Result<EntryDto> {
     let pending = get_pending_entry(conn, id)?;
     let write = pending_to_entry_write(conn, &pending)?;
     let dto = create_entry(conn, write)?;
-    delete_pending_entry(conn, id)?;
+    destroy_pending_entry(conn, id)?;
     Ok(dto)
 }
 
@@ -291,5 +300,26 @@ fn to_pending_dto(conn: &Connection, row: PendingRow) -> Result<PendingEntryDto>
         created_at: row.created_at,
         updated_at: row.updated_at,
         tag_ids,
+        deleted_at: None,
     })
+}
+
+pub fn list_pending_including_deleted(conn: &Connection) -> Result<Vec<PendingEntryDto>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, amount_minor, occurred_at, kind_id, account_id, counter_account_id,
+                counter_amount_minor, category_id, fee_category_id, note, created_at, updated_at, deleted_at
+         FROM pending_entry
+         ORDER BY occurred_at DESC, created_at DESC, id DESC",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        Ok((map_pending_row(r)?, r.get::<_, Option<String>>(12)?))
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        let (pending, deleted_at) = row?;
+        let mut dto = to_pending_dto(conn, pending)?;
+        dto.deleted_at = deleted_at;
+        out.push(dto);
+    }
+    Ok(out)
 }

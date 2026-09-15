@@ -21,7 +21,8 @@ Stable vocabulary for design and, later, code. Prefer these English terms in ide
 | **Category** | A node in a user-owned tree (mains and subs). Seeded on first run; afterwards add/rename/delete (when unused). Not a list compiled into the UI. |
 | **Leaf category** | A subcategory used as `categoryId` or `feeCategoryId`. |
 | **Tag** | A free-form label. An entry may have many tags. Tags are orthogonal to categories: one category path, many tags. |
-| **Pending entry** | An imported draft that is not yet posted. Lives in `pending_entry`. Does not affect balance, debt, or reports until **Post**. |
+| **Pending entry** | An imported draft that is not yet posted. Lives in `pending_entry`. Does not affect balance, debt, or reports until **Post**. Discard moves it to Trash. |
+| **Trash** | Holding area for deleted or discarded rows (`deletedAt` set). Live lists, reports, and balances ignore them. Restore clears `deletedAt`. Permanent delete or Empty Trash removes the row. |
 | **Note** | Free text on an **entry**. Distinct from **account note**. |
 | **Amount (minor units)** | Integer count of the smallest currency unit (fen for CNY). Never a binary floating-point money value. |
 | **Occurred at** | When the economic event happened, precise to the minute. Distinct from when the row was created or edited. |

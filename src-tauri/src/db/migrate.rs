@@ -1,7 +1,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use uuid::Uuid;
 
-use crate::db::schema::{PENDING_TABLES, SCHEMA_VERSION};
+use crate::db::schema::{PENDING_TABLES, SCHEMA_VERSION, TRASH_INDEXES};
 use crate::error::Result;
 
 pub fn apply(conn: &Connection) -> Result<()> {
@@ -19,6 +19,11 @@ pub fn apply(conn: &Connection) -> Result<()> {
     add_column_if_missing(conn, "ledger_settings", "last_occurred_at", "TEXT")?;
     add_column_if_missing(conn, "ledger_settings", "ui_theme", "TEXT")?;
     conn.execute_batch(PENDING_TABLES)?;
+    add_column_if_missing(conn, "account", "deleted_at", "TEXT")?;
+    add_column_if_missing(conn, "category", "deleted_at", "TEXT")?;
+    add_column_if_missing(conn, "entry", "deleted_at", "TEXT")?;
+    add_column_if_missing(conn, "pending_entry", "deleted_at", "TEXT")?;
+    conn.execute_batch(TRASH_INDEXES)?;
     seed_finance_loan(conn)?;
     conn.execute(
         "UPDATE ledger_settings SET schema_version = ?1 WHERE id = 1",

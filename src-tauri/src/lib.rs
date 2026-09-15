@@ -63,7 +63,11 @@ pub fn run() {
             commands::delete_pending_entry,
             commands::post_pending_entry,
             commands::import_pending_csv,
-            commands::write_pending_csv_template
+            commands::write_pending_csv_template,
+            commands::list_trash,
+            commands::restore_trash,
+            commands::purge_trash,
+            commands::empty_trash
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
