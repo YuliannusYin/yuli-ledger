@@ -47,6 +47,7 @@ pub struct KindDescriptor {
     pub category_required: bool,
     pub counter_account_required: bool,
     pub counter_amount_required: bool,
+    pub counter_accounts_must_differ: bool,
     pub primary_account_label_key: Option<&'static str>,
     pub counter_account_label_key: Option<&'static str>,
     pub implemented: bool,
@@ -65,6 +66,7 @@ pub const EXPENSE: KindDescriptor = KindDescriptor {
     category_required: true,
     counter_account_required: false,
     counter_amount_required: false,
+    counter_accounts_must_differ: false,
     primary_account_label_key: None,
     counter_account_label_key: None,
     implemented: true,
@@ -83,6 +85,7 @@ pub const INCOME: KindDescriptor = KindDescriptor {
     category_required: true,
     counter_account_required: false,
     counter_amount_required: false,
+    counter_accounts_must_differ: false,
     primary_account_label_key: None,
     counter_account_label_key: None,
     implemented: true,
@@ -101,6 +104,7 @@ pub const PREPAYMENT: KindDescriptor = KindDescriptor {
     category_required: true,
     counter_account_required: false,
     counter_amount_required: false,
+    counter_accounts_must_differ: false,
     primary_account_label_key: None,
     counter_account_label_key: None,
     implemented: true,
@@ -119,8 +123,28 @@ pub const REPAYMENT: KindDescriptor = KindDescriptor {
     category_required: true,
     counter_account_required: true,
     counter_amount_required: false,
+    counter_accounts_must_differ: true,
     primary_account_label_key: Some("field.repayFromAccount"),
     counter_account_label_key: Some("field.repaidAccount"),
+    implemented: true,
+};
+
+pub const LOAN: KindDescriptor = KindDescriptor {
+    id: "loan",
+    label_key: "kind.loan",
+    hint_key: Some("kind.loan.hint"),
+    payload_schema_version: 1,
+    balance_effect: BalanceEffect::Increase,
+    report_bucket: ReportBucket::None,
+    fee_report_bucket: FeeReportBucket::None,
+    debt_effect_primary: DebtEffect::None,
+    debt_effect_counter: DebtEffect::Increase,
+    category_required: true,
+    counter_account_required: true,
+    counter_amount_required: false,
+    counter_accounts_must_differ: false,
+    primary_account_label_key: Some("field.loanToAccount"),
+    counter_account_label_key: Some("field.loanDebtAccount"),
     implemented: true,
 };
 
@@ -137,12 +161,13 @@ pub const TRANSFER: KindDescriptor = KindDescriptor {
     category_required: true,
     counter_account_required: true,
     counter_amount_required: true,
+    counter_accounts_must_differ: true,
     primary_account_label_key: None,
     counter_account_label_key: Some("field.destAccount"),
     implemented: true,
 };
 
-pub const ALL: &[KindDescriptor] = &[EXPENSE, INCOME, PREPAYMENT, REPAYMENT, TRANSFER];
+pub const ALL: &[KindDescriptor] = &[EXPENSE, INCOME, PREPAYMENT, REPAYMENT, LOAN, TRANSFER];
 
 pub fn get(id: &str) -> Option<&'static KindDescriptor> {
     ALL.iter().find(|k| k.id == id)
@@ -238,7 +263,7 @@ mod tests {
         let ids: Vec<&str> = implemented().iter().map(|k| k.id).collect();
         assert_eq!(
             ids,
-            ["expense", "income", "prepayment", "repayment", "transfer"]
+            ["expense", "income", "prepayment", "repayment", "loan", "transfer"]
         );
     }
 
@@ -257,6 +282,19 @@ mod tests {
         assert!(!REPAYMENT.counter_amount_required);
         assert_eq!(REPAYMENT.debt_effect_counter, DebtEffect::Decrease);
         let (inc, exp) = pnl_amounts("repayment", 5000, None);
+        assert_eq!((inc, exp), (0, 0));
+    }
+
+    #[test]
+    fn loan_raises_balance_and_counter_debt_not_pnl() {
+        assert!(LOAN.counter_account_required);
+        assert!(!LOAN.counter_amount_required);
+        assert_eq!(LOAN.balance_effect, BalanceEffect::Increase);
+        assert_eq!(LOAN.debt_effect_counter, DebtEffect::Increase);
+        assert_eq!(LOAN.report_bucket, ReportBucket::None);
+        assert!(!LOAN.counter_accounts_must_differ);
+        assert!(REPAYMENT.counter_accounts_must_differ);
+        let (inc, exp) = pnl_amounts("loan", 8000, None);
         assert_eq!((inc, exp), (0, 0));
     }
 }

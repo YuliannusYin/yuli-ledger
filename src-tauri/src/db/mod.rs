@@ -1,4 +1,5 @@
 mod migrate;
+mod pending;
 pub mod palette;
 mod schema;
 mod seed;
@@ -13,6 +14,11 @@ use crate::error::{AppError, Result};
 use crate::kinds::{self, registry};
 use crate::models::*;
 use crate::time_util;
+
+pub use pending::{
+    delete_pending_entry, insert_pending_row, list_pending_entries, pending_count,
+    post_pending_entry, update_pending_entry,
+};
 
 pub fn default_db_path() -> PathBuf {
     let local = std::env::var_os("LOCALAPPDATA")
@@ -153,12 +159,17 @@ pub fn update_account(conn: &Connection, id: &str, write: AccountWrite) -> Resul
 }
 
 pub fn account_usage(conn: &Connection, id: &str) -> Result<i64> {
-    conn.query_row(
+    let posted: i64 = conn.query_row(
         "SELECT COUNT(*) FROM entry WHERE account_id = ?1 OR counter_account_id = ?1",
         [id],
         |r| r.get(0),
-    )
-    .map_err(Into::into)
+    )?;
+    let pending: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM pending_entry WHERE account_id = ?1 OR counter_account_id = ?1",
+        [id],
+        |r| r.get(0),
+    )?;
+    Ok(posted + pending)
 }
 
 pub fn delete_account(conn: &Connection, id: &str) -> Result<()> {
@@ -314,12 +325,17 @@ pub fn rename_category(conn: &Connection, id: &str, name: &str) -> Result<Vec<Ca
 }
 
 pub fn category_usage(conn: &Connection, id: &str) -> Result<i64> {
-    conn.query_row(
+    let posted: i64 = conn.query_row(
         "SELECT COUNT(*) FROM entry WHERE category_id = ?1 OR fee_category_id = ?1",
         [id],
         |r| r.get(0),
-    )
-    .map_err(Into::into)
+    )?;
+    let pending: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM pending_entry WHERE category_id = ?1 OR fee_category_id = ?1",
+        [id],
+        |r| r.get(0),
+    )?;
+    Ok(posted + pending)
 }
 
 fn is_default_fee(conn: &Connection, id: &str) -> Result<bool> {
@@ -404,6 +420,7 @@ pub fn list_tags(conn: &Connection) -> Result<Vec<TagDto>> {
 
 pub fn delete_tag(conn: &Connection, id: &str) -> Result<()> {
     conn.execute("DELETE FROM entry_tag WHERE tag_id = ?1", [id])?;
+    conn.execute("DELETE FROM pending_entry_tag WHERE tag_id = ?1", [id])?;
     let n = conn.execute("DELETE FROM tag WHERE id = ?1", [id])?;
     if n == 0 {
         return Err(AppError::new("error.tagNotFound"));
@@ -411,7 +428,7 @@ pub fn delete_tag(conn: &Connection, id: &str) -> Result<()> {
     Ok(())
 }
 
-fn upsert_tags(conn: &Connection, entry_id: &str, names: &[String]) -> Result<Vec<String>> {
+pub(super) fn upsert_tags(conn: &Connection, entry_id: &str, names: &[String]) -> Result<Vec<String>> {
     conn.execute("DELETE FROM entry_tag WHERE entry_id = ?1", [entry_id])?;
     let mut ids = Vec::new();
     for raw in names {
@@ -444,7 +461,7 @@ fn upsert_tags(conn: &Connection, entry_id: &str, names: &[String]) -> Result<Ve
     Ok(ids)
 }
 
-fn require_subcategory(conn: &Connection, id: &str) -> Result<()> {
+pub(super) fn require_subcategory(conn: &Connection, id: &str) -> Result<()> {
     let parent: Option<String> = conn
         .query_row("SELECT parent_id FROM category WHERE id = ?1", [id], |r| r.get(0))
         .optional()?
@@ -455,7 +472,7 @@ fn require_subcategory(conn: &Connection, id: &str) -> Result<()> {
     Ok(())
 }
 
-fn require_account(conn: &Connection, id: &str) -> Result<()> {
+pub(super) fn require_account(conn: &Connection, id: &str) -> Result<()> {
     let n: i64 = conn.query_row("SELECT COUNT(*) FROM account WHERE id = ?1", [id], |r| r.get(0))?;
     if n == 0 {
         return Err(AppError::new("error.accountNotFound"));
@@ -830,7 +847,7 @@ pub fn update_settings(conn: &Connection, patch: SettingsDto) -> Result<Settings
     get_settings(conn)
 }
 
-fn empty_to_none(value: Option<String>) -> Option<String> {
+pub(super) fn empty_to_none(value: Option<String>) -> Option<String> {
     value.and_then(|s| {
         let t = s.trim().to_string();
         if t.is_empty() {
@@ -897,8 +914,11 @@ mod tests {
         assert!(cats.iter().any(|c| c.preset_key.as_deref() == Some("preset.category.transfer.fee")));
         let settings = get_settings(&conn).unwrap();
         assert_eq!(settings.currency_code, "CNY");
-        assert_eq!(settings.schema_version, 3);
+        assert_eq!(settings.schema_version, 4);
         assert_eq!(settings.ui_theme, None);
+        assert!(cats
+            .iter()
+            .any(|c| c.preset_key.as_deref() == Some("preset.category.finance.loan")));
     }
 
     #[test]
@@ -1125,6 +1145,162 @@ mod tests {
         assert_eq!(debt_row.debt_minor, 5000 + 2000 - 800);
         let (inc, exp) = registry::pnl_amounts("prepayment", 2000, None);
         assert_eq!((inc, exp), (0, 2000));
+    }
+
+    #[test]
+    fn loan_raises_balance_and_counter_debt() {
+        let mut db = temp_conn();
+        let cash = list_accounts(&db.conn).unwrap().pop().unwrap();
+        let loan_cat = category_id_by_preset(&db.conn, "preset.category.finance.loan").unwrap();
+        let debt_acct = create_account(
+            &db.conn,
+            AccountWrite {
+                name: "Credit".into(),
+                account_kind: "credit".into(),
+                opening_balance_minor: 0,
+                opening_debt_minor: 0,
+                opening_at: time_util::OPENING_EPOCH.into(),
+                note: None,
+            },
+        )
+        .unwrap();
+
+        let err = create_entry(
+            &mut db.conn,
+            EntryWrite {
+                kind_id: "loan".into(),
+                amount_minor: 8000,
+                occurred_at: "2026-09-09T12:00:00Z".into(),
+                account_id: cash.id.clone(),
+                counter_account_id: None,
+                counter_amount_minor: None,
+                category_id: loan_cat.clone(),
+                fee_category_id: None,
+                note: None,
+                tag_names: vec![],
+                kind_payload: None,
+            },
+        )
+        .unwrap_err();
+        assert_eq!(err.code, "error.counterAccountRequired");
+
+        create_entry(
+            &mut db.conn,
+            EntryWrite {
+                kind_id: "loan".into(),
+                amount_minor: 8000,
+                occurred_at: "2026-09-09T12:00:00Z".into(),
+                account_id: cash.id.clone(),
+                counter_account_id: Some(debt_acct.id.clone()),
+                counter_amount_minor: None,
+                category_id: loan_cat,
+                fee_category_id: None,
+                note: None,
+                tag_names: vec![],
+                kind_payload: None,
+            },
+        )
+        .unwrap();
+
+        let accounts = list_accounts(&db.conn).unwrap();
+        let cash_row = accounts.iter().find(|a| a.id == cash.id).unwrap();
+        let debt_row = accounts.iter().find(|a| a.id == debt_acct.id).unwrap();
+        assert_eq!(cash_row.balance_minor, 8000);
+        assert_eq!(cash_row.debt_minor, 0);
+        assert_eq!(debt_row.balance_minor, 0);
+        assert_eq!(debt_row.debt_minor, 8000);
+        let (inc, exp) = registry::pnl_amounts("loan", 8000, None);
+        assert_eq!((inc, exp), (0, 0));
+    }
+
+    #[test]
+    fn loan_allows_same_account_for_balance_and_debt() {
+        let mut db = temp_conn();
+        let cash = list_accounts(&db.conn).unwrap().pop().unwrap();
+        let loan_cat = category_id_by_preset(&db.conn, "preset.category.finance.loan").unwrap();
+        create_entry(
+            &mut db.conn,
+            EntryWrite {
+                kind_id: "loan".into(),
+                amount_minor: 3000,
+                occurred_at: "2026-09-09T12:00:00Z".into(),
+                account_id: cash.id.clone(),
+                counter_account_id: Some(cash.id.clone()),
+                counter_amount_minor: None,
+                category_id: loan_cat,
+                fee_category_id: None,
+                note: None,
+                tag_names: vec![],
+                kind_payload: None,
+            },
+        )
+        .unwrap();
+        let row = list_accounts(&db.conn)
+            .unwrap()
+            .into_iter()
+            .find(|a| a.id == cash.id)
+            .unwrap();
+        assert_eq!(row.balance_minor, 3000);
+        assert_eq!(row.debt_minor, 3000);
+    }
+
+    #[test]
+    fn repayment_rejects_same_account() {
+        let mut db = temp_conn();
+        let cash = list_accounts(&db.conn).unwrap().pop().unwrap();
+        let repay_cat = category_id_by_preset(&db.conn, "preset.category.finance.repayment").unwrap();
+        let err = create_entry(
+            &mut db.conn,
+            EntryWrite {
+                kind_id: "repayment".into(),
+                amount_minor: 800,
+                occurred_at: "2026-09-09T13:00:00Z".into(),
+                account_id: cash.id.clone(),
+                counter_account_id: Some(cash.id.clone()),
+                counter_amount_minor: None,
+                category_id: repay_cat,
+                fee_category_id: None,
+                note: None,
+                tag_names: vec![],
+                kind_payload: None,
+            },
+        )
+        .unwrap_err();
+        assert_eq!(err.code, "error.accountsMustDiffer");
+    }
+
+    #[test]
+    fn pending_import_does_not_post_until_confirmed() {
+        let mut db = temp_conn();
+        let id = insert_pending_row(&db.conn, 1250, "2026-09-14T04:30:00Z").unwrap();
+        assert_eq!(pending_count(&db.conn).unwrap(), 1);
+        assert!(list_all_entry_rows(&db.conn).unwrap().is_empty());
+        let err = post_pending_entry(&mut db.conn, &id).unwrap_err();
+        assert_eq!(err.code, "error.kindRequired");
+        let cash = list_accounts(&db.conn).unwrap().pop().unwrap();
+        let food = category_id_by_preset(&db.conn, "preset.category.food.dining").unwrap();
+        update_pending_entry(
+            &mut db.conn,
+            &id,
+            PendingEntryWrite {
+                amount_minor: 1250,
+                occurred_at: "2026-09-14T04:30:00Z".into(),
+                kind_id: Some("expense".into()),
+                account_id: Some(cash.id.clone()),
+                counter_account_id: None,
+                counter_amount_minor: None,
+                category_id: Some(food),
+                fee_category_id: None,
+                note: Some("imported".into()),
+                tag_names: vec!["csv".into()],
+            },
+        )
+        .unwrap();
+        let posted = post_pending_entry(&mut db.conn, &id).unwrap();
+        assert_eq!(posted.kind_id, "expense");
+        assert_eq!(posted.amount_minor, 1250);
+        assert_eq!(pending_count(&db.conn).unwrap(), 0);
+        assert_eq!(list_all_entry_rows(&db.conn).unwrap().len(), 1);
     }
 
     #[test]

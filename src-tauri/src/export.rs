@@ -67,7 +67,7 @@ pub fn write_backup_json(conn: &rusqlite::Connection, path: &str) -> Result<()> 
     write_path(path, body.as_bytes())
 }
 
-fn write_path(path: &str, bytes: &[u8]) -> Result<()> {
+pub(crate) fn write_path(path: &str, bytes: &[u8]) -> Result<()> {
     let path = path.trim();
     if path.is_empty() {
         return Err(AppError::new("error.io"));
@@ -261,6 +261,7 @@ pub fn build_backup_json(conn: &rusqlite::Connection) -> Result<String> {
                 note_contains: None,
             },
         )?,
+        pending_entries: db::list_pending_entries(conn)?,
     };
     Ok(serde_json::to_string_pretty(&backup)?)
 }
@@ -277,6 +278,7 @@ struct BackupFile {
     categories: Vec<CategoryDto>,
     tags: Vec<TagDto>,
     entries: Vec<EntryDto>,
+    pending_entries: Vec<PendingEntryDto>,
 }
 
 fn label<'a>(labels: &'a HashMap<String, String>, key: &str, fallback: &'a str) -> &'a str {

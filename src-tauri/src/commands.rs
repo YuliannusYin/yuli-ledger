@@ -6,6 +6,7 @@ use tauri::State;
 use crate::db;
 use crate::error::Result;
 use crate::export;
+use crate::import;
 use crate::kinds::registry;
 use crate::models::*;
 use crate::reports;
@@ -45,6 +46,7 @@ pub fn get_bootstrap(state: State<DbState>) -> Result<BootstrapDto> {
         resolved_language,
         system_language: db::system_language(),
         category_palette: db::palette::all(),
+        pending_count: db::pending_count(&conn)?,
     })
 }
 
@@ -238,4 +240,43 @@ pub fn export_entries_txt(
 pub fn export_backup_json(state: State<DbState>, path: String) -> Result<()> {
     let conn = lock(&state)?;
     export::write_backup_json(&conn, &path)
+}
+
+#[tauri::command]
+pub fn list_pending_entries(state: State<DbState>) -> Result<Vec<PendingEntryDto>> {
+    let conn = lock(&state)?;
+    db::list_pending_entries(&conn)
+}
+
+#[tauri::command]
+pub fn update_pending_entry(
+    state: State<DbState>,
+    id: String,
+    write: PendingEntryWrite,
+) -> Result<PendingEntryDto> {
+    let mut conn = lock(&state)?;
+    db::update_pending_entry(&mut conn, &id, write)
+}
+
+#[tauri::command]
+pub fn delete_pending_entry(state: State<DbState>, id: String) -> Result<()> {
+    let conn = lock(&state)?;
+    db::delete_pending_entry(&conn, &id)
+}
+
+#[tauri::command]
+pub fn post_pending_entry(state: State<DbState>, id: String) -> Result<EntryDto> {
+    let mut conn = lock(&state)?;
+    db::post_pending_entry(&mut conn, &id)
+}
+
+#[tauri::command]
+pub fn import_pending_csv(state: State<DbState>, path: String) -> Result<ImportPendingResult> {
+    let mut conn = lock(&state)?;
+    import::import_pending_csv(&mut conn, &path)
+}
+
+#[tauri::command]
+pub fn write_pending_csv_template(path: String) -> Result<()> {
+    import::write_pending_template(&path)
 }

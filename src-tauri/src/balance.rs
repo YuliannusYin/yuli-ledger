@@ -149,6 +149,40 @@ mod tests {
     }
 
     #[test]
+    fn loan_increases_primary_balance_and_counter_debt() {
+        let entries = vec![row(
+            "loan",
+            8000,
+            "cash",
+            Some(("credit", 0)),
+            "2026-01-02T00:00:00Z",
+        )];
+        let cash_bal = balance_for_account(1000, "1970-01-01T00:00:00Z", "cash", &entries);
+        let credit_bal = balance_for_account(0, "1970-01-01T00:00:00Z", "credit", &entries);
+        let cash_debt = debt_for_account(0, "1970-01-01T00:00:00Z", "cash", &entries);
+        let credit_debt = debt_for_account(500, "1970-01-01T00:00:00Z", "credit", &entries);
+        assert_eq!(cash_bal, 1000 + 8000);
+        assert_eq!(credit_bal, 0);
+        assert_eq!(cash_debt, 0);
+        assert_eq!(credit_debt, 500 + 8000);
+    }
+
+    #[test]
+    fn loan_same_account_raises_balance_and_debt() {
+        let entries = vec![row(
+            "loan",
+            3000,
+            "cash",
+            Some(("cash", 0)),
+            "2026-01-02T00:00:00Z",
+        )];
+        let bal = balance_for_account(100, "1970-01-01T00:00:00Z", "cash", &entries);
+        let debt = debt_for_account(0, "1970-01-01T00:00:00Z", "cash", &entries);
+        assert_eq!(bal, 100 + 3000);
+        assert_eq!(debt, 3000);
+    }
+
+    #[test]
     fn unknown_kind_is_none() {
         let entries = vec![row("future_kind", 999, "a", None, "2026-01-01T00:00:00Z")];
         let bal = balance_for_account(5, "1970-01-01T00:00:00Z", "a", &entries);

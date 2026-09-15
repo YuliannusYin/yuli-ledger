@@ -147,6 +147,7 @@ const MAINS: &[SeedMain] = &[
         subs: &[
             "preset.category.finance.bankfee",
             "preset.category.finance.repayment",
+            "preset.category.finance.loan",
             "preset.category.finance.other",
         ],
     },

@@ -12,6 +12,9 @@ import type {
   ReportQuery,
   SettingsDto,
   TagDto,
+  PendingEntryDto,
+  PendingEntryWrite,
+  ImportPendingResult,
 } from "./types";
 
 export async function api<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -78,3 +81,12 @@ export const exportEntriesTxt = (args: {
   labels: Record<string, string>;
 }) => api<void>("export_entries_txt", args);
 export const exportBackupJson = (path: string) => api<void>("export_backup_json", { path });
+export const listPendingEntries = () => api<PendingEntryDto[]>("list_pending_entries");
+export const updatePendingEntry = (id: string, write: PendingEntryWrite) =>
+  api<PendingEntryDto>("update_pending_entry", { id, write });
+export const deletePendingEntry = (id: string) => api<void>("delete_pending_entry", { id });
+export const postPendingEntry = (id: string) => api<EntryDto>("post_pending_entry", { id });
+export const importPendingCsv = (path: string) =>
+  api<ImportPendingResult>("import_pending_csv", { path });
+export const writePendingCsvTemplate = (path: string) =>
+  api<void>("write_pending_csv_template", { path });

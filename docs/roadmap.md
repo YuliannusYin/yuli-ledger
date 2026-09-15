@@ -7,7 +7,7 @@ This is a sequencing document, not a calendar. Implementation starts only after 
 You can run a Windows desktop build (Tauri) that:
 
 - Seeds Default account, the preset category tree in [preset-categories.md](preset-categories.md), and i18n keys. After seed, the user can add/rename/delete mains, subs, and accounts (delete only when unused).
-- Records, edits, and hard-deletes **`income`**, **`expense`**, **`repayment`**, **`prepayment`**, and **`transfer`** entries with amount, local date-time to the minute, account(s), category or fee category as required, tags, note
+- Records, edits, and hard-deletes **`income`**, **`expense`**, **`repayment`**, **`prepayment`**, **`loan`**, and **`transfer`** entries with amount, local date-time to the minute, account(s), category or fee category as required, tags, note
 - Transfer: two accounts, destination amount, optional fee on the same row (WeChat → bank is this kind)
 - Lists those entries as a ledger with the filters in [features.md](features.md)
 - Shows reports per [features.md](features.md): week / month / year / custom; point-line trend; pie + table; 8-period comparison bars; ranking
@@ -22,7 +22,7 @@ v1 is **not** done when the kind registry exists only on paper; the registry mus
 
 - Phone, web hosting, LAN sync, or any multi-device story
 - Network features (login, telemetry, required updater)
-- WeChat / Alipay / bank **import** (manual `transfer` is in)
+- WeChat / Alipay / bank **bill import** (generic CSV into Pending is in; manual `transfer` is in)
 - Liability remaining **entities**; prepaid-asset ledger; **settlement** of prepayment into expense. Per-account derived **debt** is in v1.
 - A dedicated WeChat-withdrawal kind (use `transfer`)
 - Multi-currency, budgets, attachments, recurring templates

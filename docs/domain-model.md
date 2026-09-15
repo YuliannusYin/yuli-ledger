@@ -6,7 +6,7 @@ Related: [glossary.md](glossary.md), [entry-kinds.md](entry-kinds.md).
 
 ## Why accounts are first-class in v1
 
-Income and expense can be recorded with only categories. **Repayment**, **prepayment**, and **transfer** cannot: they name which account(s) the entry belongs to. If v1 has no account, those kinds collapse into notes.
+Income and expense can be recorded with only categories. Repayment, prepayment, transfer, and **loan** cannot: they name which account(s) the entry belongs to. If v1 has no account, those kinds collapse into notes.
 
 v1 requires an **Account** on every entry (`accountId`). Transfers and repayments also require a **counterparty account**. Seed one **Default** account; the user adds, edits (including a **note**), and deletes accounts under the same rules as categories.
 
@@ -23,7 +23,12 @@ erDiagram
   Category ||--o{ Entry : classifies
   Category ||--o{ Entry : feeCategory
   Entry ||--o{ EntryTag : has
+  Account ||--o{ PendingEntry : optionalPrimary
+  Account ||--o{ PendingEntry : optionalCounter
+  Category ||--o{ PendingEntry : optionalClassifies
+  PendingEntry ||--o{ PendingEntryTag : has
   Tag ||--o{ EntryTag : on
+  Tag ||--o{ PendingEntryTag : on
   Account {
     string id
     string name
@@ -52,6 +57,15 @@ erDiagram
     string feeCategoryId
     string note
     json kindPayload
+  }
+  PendingEntry {
+    string id
+    integer amountMinor
+    datetime occurredAt
+    string kindId
+    string accountId
+    string categoryId
+    string note
   }
   Tag {
     string id
@@ -104,7 +118,7 @@ Rules:
 - Accounts are **user-owned**. The UI lists them from SQLite; do not hardcode WeChat/bank names.
 - At least one account always exists. Seed **Default** (`preset.account.default`) on first run; the user may rename it, add others, and delete Default once another account exists and is the default.
 - Fields the user can edit: name, `accountKind`, opening balance / opening debt / `openingAt`, **note**, sort order.
-- **Delete** an account only if no entry references it as `accountId` or `counterAccountId`, it is not the sole remaining account, and it is not `defaultAccountId` (assign a new default first). Do not cascade-delete entries.
+- **Delete** an account only if no posted **or pending** entry references it as `accountId` or `counterAccountId`, it is not the sole remaining account, and it is not `defaultAccountId` (assign a new default first). Do not cascade-delete entries.
 - A `credit` account is still a named pot. Paying it as cash-in is a `transfer`. Reducing its **debt** is a `repayment` whose `counterAccountId` is that account.
 
 ### Derived balance
@@ -162,7 +176,7 @@ Rules:
 - When `categoryId` is set, it must point at a **subcategory**. Same rule for `feeCategoryId`.
 - `categoryId` is **required** for every v1 kind, including `transfer` (classify the move; seed lives under Transfer). `feeCategoryId` is required only when a transfer has a fee.
 - Kind-specific category sets are **not** required in v1. The same tree is available to all kinds. Do not require `categoryId` to sit under the seeded Transfer main: the user may delete that main and use any sub.
-- **Delete a sub:** refuse if any entry uses it as `categoryId` or `feeCategoryId`, or if it is `defaultFeeCategoryId`. Do not orphan FKs.
+- **Delete a sub:** refuse if any posted or pending entry uses it as `categoryId` or `feeCategoryId`, or if it is `defaultFeeCategoryId`. Do not orphan FKs.
 - **Delete a main:** refuse unless every descendant is unused (and not `defaultFeeCategoryId`); then delete descendants with the main.
 - Seed `defaultFeeCategoryId` to Transfer → Transfer fee (`preset.category.transfer.fee`).
 - Pie colors: [ui.md](ui.md) palette; do not recompute randomly on each open.
@@ -183,7 +197,7 @@ Rules:
 
 ## Entry
 
-The atom. Core columns are the same for every kind. Nullable **counterparty** and **fee category** columns are a slot for two-account kinds (`transfer` and `repayment` in v1), not a second entry table.
+The nullable **counterparty** slot is for two-account kinds (`transfer`, `repayment`, `loan`).
 
 | Field | Role |
 |-------|------|
@@ -191,8 +205,8 @@ The atom. Core columns are the same for every kind. Nullable **counterparty** an
 | `kindId` | Registry id. |
 | `amountMinor` | Integer `> 0`. Primary amount: inflow, outflow, or **source** amount of a transfer. |
 | `occurredAt` | Event time, minute precision. Stored as UTC; see Time. |
-| `accountId` | Required. Primary account: dest of income, source of expense / repayment / transfer; debt account of prepayment. |
-| `counterAccountId` | Null unless the kind requires a counterparty (`transfer` destination, `repayment` account being repaid). |
+| `accountId` | Required. Primary account: dest of income and loan, source of expense / repayment / transfer; debt account of prepayment. |
+| `counterAccountId` | Null unless the kind requires a counterparty (`transfer` destination, `repayment` account being repaid, `loan` debt account). |
 | `counterAmountMinor` | Null unless the kind requires a destination amount (`transfer`). Integer `> 0`. |
 | `categoryId` | Required subcategory for all v1 kinds (including `transfer`). |
 | `feeCategoryId` | Subcategory for a transfer fee; null when there is no fee. |
@@ -204,6 +218,20 @@ The atom. Core columns are the same for every kind. Nullable **counterparty** an
 `EntryTag` is a pair `(entryId, tagId)` with a unique constraint on the pair. Tag order on an entry is not significant in v1.
 
 Validation that depends on kind lives in the **kind module**, not in a generic “save entry” dump of `if kindId == "income"`. Shared transfer rules are in [entry-kinds.md](entry-kinds.md).
+
+## Pending entry
+
+Imported rows wait here until the user posts them. They do **not** affect derived balance, debt, or reports.
+
+| Field | Role |
+|-------|------|
+| `id` | Stable id. |
+| `amountMinor` | Required, `> 0`. |
+| `occurredAt` | Required event time (same clock as Entry). |
+| `kindId` / `accountId` / `counterAccountId` / `counterAmountMinor` / `categoryId` / `feeCategoryId` / `note` | Optional until the user fills them. Empty is stored as null. |
+| `createdAt` / `updatedAt` | Audit. |
+
+`PendingEntryTag` is `(pendingEntryId, tagId)`. CSV import writes only `amountMinor` and `occurredAt`. **Post** copies a complete draft through `create_entry` validation, then deletes the pending row. **Discard** is a hard delete. Account and category usage counts include pending foreign keys.
 
 ## Money
 
@@ -234,7 +262,7 @@ The install is single-machine and offline, so a timezone change of the OS can mo
 
 - Every `kindId` must exist in the registry known to that app version. Unknown kinds: show as generic entries, do not crash; do not silently drop them.
 - Foreign keys: `accountId`, `counterAccountId`, `categoryId`, `feeCategoryId`, tags must exist when non-null.
-- Counterparty columns are unused, valid for `transfer`, or `counterAccountId` only for `repayment` as in [entry-kinds.md](entry-kinds.md).
+- Counterparty columns are unused, valid for `transfer`, `counterAccountId` only for `repayment` and `loan` as in [entry-kinds.md](entry-kinds.md).
 - No floating-point amounts in the database.
 
 ## What this model deliberately omits

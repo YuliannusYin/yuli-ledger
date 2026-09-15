@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import TitleBar from "./components/TitleBar";
 import NavRail from "./components/NavRail";
 import RecordScreen from "./screens/RecordScreen";
+import PendingScreen from "./screens/PendingScreen";
 import LedgerScreen from "./screens/LedgerScreen";
 import ReportsScreen from "./screens/ReportsScreen";
 import AccountsScreen from "./screens/AccountsScreen";
@@ -53,7 +54,7 @@ export default function App() {
         setScreen("record");
         setTimeout(() => amountRef.current?.focus(), 0);
       }
-      if (e.ctrlKey && e.key >= "1" && e.key <= "6") {
+      if (e.ctrlKey && e.key >= "1" && e.key <= String(SCREENS.length)) {
         e.preventDefault();
         setScreen(SCREENS[Number(e.key) - 1]);
       }
@@ -98,6 +99,7 @@ export default function App() {
         <NavRail
           screen={screen}
           collapsed={collapsed}
+          pendingCount={data.pendingCount}
           onScreen={setScreen}
           onToggle={() => setCollapsed((v) => !v)}
         />
@@ -113,6 +115,16 @@ export default function App() {
                 onSaved={reload}
               />
             </div>
+          )}
+          {screen === "pending" && (
+            <PendingScreen
+              kinds={data.kinds}
+              accounts={data.accounts}
+              categories={data.categories}
+              tags={data.tags}
+              locale={locale}
+              onChanged={reload}
+            />
           )}
           {screen === "ledger" && (
             <LedgerScreen

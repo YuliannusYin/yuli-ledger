@@ -1,6 +1,6 @@
 # Features
 
-v1 has three product surfaces: **bookkeeping** (write), **ledger** (read/filter), **reports** (aggregate). Account and category management exist only as much as bookkeeping needs.
+v1 has four product surfaces: **bookkeeping** (write), **pending** (review imports), **ledger** (read/filter), **reports** (aggregate). Account and category management exist only as much as bookkeeping needs.
 
 Charts: **figures first**, thin bars, no pie as the primary view. Visual rules: [ui.md](ui.md).
 
@@ -10,7 +10,7 @@ Kind field requirements: [entry-kinds.md](entry-kinds.md).
 
 ### Record an entry
 
-The user picks a kind from the registry (`implemented: true`): `income`, `expense`, `repayment`, `prepayment`, `transfer`. Shared fields:
+The user picks a kind from the registry (`implemented: true`): `income`, `expense`, `repayment`, `prepayment`, `loan`, `transfer`. Shared fields:
 
 - Amount (CNY, two decimal places → integer minor units). For transfer this is the **source** amount (what left).
 - Occurred at: local year, month, day, hour, minute (seconds not shown; stored as UTC, seconds zero)
@@ -24,12 +24,14 @@ Kind-specific:
 |------|----------------|----------------|
 | `income`, `expense`, `prepayment` | Subcategory (after a main category) | — |
 | `repayment` | Subcategory; **account being repaid** (`counterAccountId`, different from the paying account) | — |
+| `loan` | Subcategory; **debt account** (`counterAccountId`, may be the same as the receiving account) | — |
 | `transfer` | Destination account; destination amount (defaults to source amount); **subcategory** (seed: WeChat withdrawal / Between accounts) | If destination is less than source: **fee category** (default `defaultFeeCategoryId`, seeded `preset.category.transfer.fee`) |
 
 The UI must not hardcode a two-button income/expense-only control that cannot grow. Short copy on the form:
 
 - Prepayment: counts as spending; this account’s debt rises; its balance does not change. Record a separate expense or transfer if cash already left.
 - Repayment: does not count as spending; paying account balance falls; repaid account debt falls.
+- Loan: does not count as income or spending; receiving account balance rises; debt account debt rises. Both may be the same account.
 - Transfer: pick a subcategory (seed: WeChat withdrawal / Between accounts). Fee, if any, is on this same row (default fee category is Transfer fee, user-changeable).
 
 Defaults: occurred at = last saved Record time if present, else now (local, to the minute); account = last saved or ledger default; transfer destination amount = source amount (fee 0).
@@ -37,6 +39,16 @@ Defaults: occurred at = last saved Record time if present, else now (local, to t
 After a successful Record save, persist last kind / accounts / categories / occurred-at in ledger settings. Stay on Record; clear **amount, tags, and note** only (including transfer destination amount). Kind, accounts, categories, and time stay.
 
 Save validates through the **kind module** plus shared entry rules ([domain-model.md](domain-model.md)).
+
+### Pending and CSV import
+
+A **Pending** nav screen holds imported rows that are not yet in the ledger. They do not move balances or reports.
+
+- **Download template:** UTF-8 BOM CSV with headers `occurredAt,amount` and one sample row.
+- **Import CSV:** map those two columns (case-insensitive). Extra columns are ignored. Local `YYYY-MM-DD HH:MM` or date-only. Amount is a positive yuan value. Invalid rows are skipped with a count; valid rows always append (duplicates allowed).
+- Layout matches the ledger inspector: left list grouped by local day; right form (kind, accounts, category, tags, note may start empty).
+- **Save draft** persists incomplete fields. **Post** runs the same validation as Record and then deletes the pending row. **Discard** hard-deletes after confirm.
+- There is no hand-written pending row and no batch post.
 
 ### Edit
 
@@ -57,12 +69,12 @@ First-class management, not a hidden settings dump. All lists come from the data
 **Accounts**
 
 - Create, rename, set `accountKind`, opening balance / opening debt / date, **note**, sort order, set default
-- Delete if unused (no entries on either side), not the last account, and not the current default (pick another default first)
+- Delete if unused (no posted or pending entries on either side), not the last account, and not the current default (pick another default first)
 
 **Categories**
 
 - Create, rename, reorder **mains** and **subs**; pick a main’s color from the built-in palette (open the palette by clicking the swatch in front of the main)
-- Delete a sub if no entry uses it and it is not `defaultFeeCategoryId`
+- Delete a sub if no posted or pending entry uses it and it is not `defaultFeeCategoryId`
 - Delete a main if all descendants are unused (children deleted with it)
 
 No bulk recategorize in v1. Occupied rows stay until the user edits or deletes those entries.
@@ -73,7 +85,7 @@ The ledger is the chronological book of entries, newest `occurredAt` first. Tie-
 
 Entries are grouped by **local calendar date** of `occurredAt`. Each day is one plate: date plus that day’s expense total (`reportBucket` expense) and income total, then the rows for that day. Each row shows enough to scan: time (hour:minute), kind label, amount, account(s), category (and fee category when a transfer has a fee), tags, note excerpt.
 
-Transfer row pattern: source account → destination account, source amount, destination amount if different, fee if any. Repayment with a repaid account: paying account → repaid account.
+Transfer row pattern: source account → destination account, source amount, destination amount if different, fee if any. Repayment and loan with two different accounts: primary account → counter account. Loan with the same account on both sides: a single account name.
 
 Opening a row shows the full entry. Edit and delete are available from detail (and may be available inline later; not required).
 
@@ -129,7 +141,7 @@ A two-state control: **Expense** | **Income**. The page shows **one side at a ti
 
 Net (`income − expense`) is a single muted figure that stays visible on both sides so the page does not hide the other side entirely.
 
-**Secondary** (not in the side total): repayment, transfer arrival volume, transfer fees. Always a compact zinc line under the figures, both sides. Prepayment is already in the expense total.
+**Secondary** (not in the side total): repayment, loan, transfer arrival volume, transfer fees. Always a compact zinc line under the figures, both sides. Prepayment is already in the expense total.
 
 ### Sections (required)
 
@@ -149,7 +161,7 @@ Empty period: muted “No entries in this range”, keep chrome.
 
 - Tag breakdown  
 - Budgets vs actual  
-- PDF export; WeChat / Alipay / bank **import**  
+- PDF export; WeChat / Alipay / bank **bill import** (generic CSV into Pending is in)  
 - Generated commentary  
 - 3D charts, area-gradient under the trend line  
 - A comparison-bar strip on **Custom** mode

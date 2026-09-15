@@ -61,7 +61,7 @@ Use the Windows **local** app-data directory (does not roam):
 
 Tauri equivalent: `app_local_data_dir` plus a fixed file name. Create the directory on first run.
 
-Backup and restore: **copy that file** while the app is closed (or after a flush). Settings should show the absolute path. Settings also offer **CSV and TXT entry export** and a **JSON backup** of ledger tables (not an import path). Do not invent a cloud backup channel.
+Backup and restore: **copy that file** while the app is closed (or after a flush). Settings should show the absolute path. Settings also offer **CSV and TXT entry export** and a **JSON backup** of ledger tables including pending rows (not a restore path). The Pending screen imports a **generic CSV** (`occurredAt`, `amount` only) into `pending_entry`; posting creates a normal `entry`. Do not invent a cloud backup channel.
 
 Optional later: `VACUUM`; JSON **import**.
 
@@ -70,9 +70,9 @@ Optional later: `VACUUM`; JSON **import**.
 - Foreign keys on.
 - WAL recommended for fewer readers/writers in one process.
 - `kind_payload` as `TEXT` JSON.
-- Indexes at least: `entry(occurred_at)`, `entry(account_id)`, `entry(counter_account_id)`, `entry(category_id)`, `entry(fee_category_id)`, `entry(kind_id)`, tag join table.
+- Indexes at least: `entry(occurred_at)`, `entry(account_id)`, `entry(counter_account_id)`, `entry(category_id)`, `entry(fee_category_id)`, `entry(kind_id)`, tag join table, `pending_entry(occurred_at)`.
 
-Schema migrations: integer `schemaVersion` in ledger settings (or a `schema_migrations` table). v1 is version 1.
+Schema migrations: integer `schemaVersion` in ledger settings (or a `schema_migrations` table). Current is version 4 (`pending_entry` plus prior columns).
 
 ## Time and locale at the boundary
 

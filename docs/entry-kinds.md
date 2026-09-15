@@ -1,6 +1,6 @@
 # Entry kinds
 
-Entry kinds are an **open registry**, not a closed enum baked into every screen. v1 implements five kinds. Later kinds must not require new *required* core columns on `Entry`. Nullable **counterparty** fields exist so a two-account kind can be queried without JSON.
+Entry kinds are an **open registry**, not a closed enum baked into every screen. The app implements six kinds. Later kinds must not require new *required* core columns on `Entry`. Nullable **counterparty** fields exist so a two-account kind can be queried without JSON.
 
 See [domain-model.md](domain-model.md) for shared fields and [features.md](features.md) for UI.
 
@@ -30,11 +30,12 @@ Each kind publishes a descriptor. Conceptual fields:
 | `categoryRequired` | Whether `categoryId` must be a subcategory |
 | `counterAccountRequired` | Whether `counterAccountId` must be set |
 | `counterAmountRequired` | Whether `counterAmountMinor` (and fee rules) must be set; implies a transfer-like destination amount |
+| `counterAccountsMustDiffer` | Whether `accountId` and `counterAccountId` must be different (`true` for `repayment` / `transfer`; `false` for `loan`) |
 | `debtEffectPrimary` | How **debt** on `accountId` changes: `increase` \| `decrease` \| `none` |
 | `debtEffectCounter` | How **debt** on `counterAccountId` changes: `increase` \| `decrease` \| `none` |
 | `implemented` | `true` for shipped kinds |
 
-Display order of implemented kinds: `expense`, `income`, `prepayment`, `repayment`, `transfer`.
+Display order of implemented kinds: `expense`, `income`, `prepayment`, `repayment`, `loan`, `transfer`.
 
 Balance, debt, and reports **must** use these descriptor fields. That is how `prepayment` can count as spending without moving cash, how `repayment` can leave one account and reduce debt on another, and how `transfer` can move two accounts, without editing every screen’s kind list.
 
@@ -73,9 +74,10 @@ Debt is a second derived number on each account (see [domain-model.md](domain-mo
 |------------------|---------------------------|
 | `debtEffectPrimary = increase` | A is `accountId` → debt += `amountMinor` |
 | `debtEffectPrimary = decrease` | A is `accountId` → debt -= `amountMinor` |
+| `debtEffectCounter = increase` | A is `counterAccountId` → debt += `amountMinor` |
 | `debtEffectCounter = decrease` | A is `counterAccountId` → debt -= `amountMinor` |
 
-v1: `prepayment` increases debt on `accountId`; `repayment` decreases debt on `counterAccountId` (the account being repaid). A repayment with no counterparty (legacy rows) does not change anyone’s debt.
+v1 kinds: `prepayment` increases debt on `accountId`; `loan` increases debt on `counterAccountId` (the debt account); `repayment` decreases debt on `counterAccountId` (the account being repaid). A repayment with no counterparty (legacy rows) does not change anyone’s debt.
 
 ## How amounts hit reports (P&L)
 
@@ -87,6 +89,7 @@ v1: `prepayment` increases debt on `accountId`; `repayment` decreases debt on `c
 | `expense` | expense += `amountMinor` |
 | `prepayment` | expense += `amountMinor` |
 | `repayment` | neither |
+| `loan` | neither |
 | `transfer` | expense += **fee** only, where `fee = amountMinor - counterAmountMinor` |
 
 Fee is `>= 0` by validation. When fee is 0, the transfer is P&L-neutral (money moved between your own accounts). When fee is 1 fen, net worth fell by 1 fen; that fen is an expense under `feeCategoryId`.
@@ -94,12 +97,13 @@ Fee is `>= 0` by validation. When fee is 0, the transfer is P&L-neutral (money m
 **Secondary totals** (not in the side total):
 
 - Sum of `repayment` `amountMinor`
+- Sum of `loan` `amountMinor`
 - Transfer volume: sum of `counterAmountMinor` (what arrived)
 - Transfer fees: sum of fees (must equal the expense attributed to transfer kinds)
 
 Prepayment is **not** on the secondary line; it is already in the expense total.
 
-**Net** is `income - expense` using the table above (so prepayment reduces net). Repayment does not.
+**Net** is `income - expense` using the table above (so prepayment reduces net). Repayment and loan do not.
 
 ## v1 kinds
 
@@ -155,6 +159,7 @@ Cash leaves the **paying** account; **debt** falls on the **account being repaid
 | `categoryRequired` | yes |
 | `counterAccountRequired` | yes |
 | `counterAmountRequired` | no |
+| `counterAccountsMustDiffer` | yes |
 | `payload` | `{ "v": 1 }` |
 
 Columns:
@@ -170,6 +175,35 @@ If the credit card *is* an account and you want its **cash-like balance** to mov
 Legacy rows may have a null counterparty; they reduce the payer’s balance only and do not change debt. Editing them requires a repaid account.
 
 Do not fake repayment as `expense` plus a tag.
+
+### `loan`
+
+Cash arrives in the **receiving** account; **debt** rises on the **debt account**. Category + note still describe the borrow. No named-debt entity. Either account may be any `accountKind`. The two accounts **may be the same**: that pot’s balance and debt both rise by `amountMinor`. Amounts are the same; there is no fee slot.
+
+| Descriptor | Value |
+|------------|--------|
+| `id` | `loan` |
+| `labelKey` | `kind.loan` |
+| `balanceEffect` | `increase` |
+| `reportBucket` | `none` |
+| `feeReportBucket` | `none` |
+| `debtEffectPrimary` | `none` |
+| `debtEffectCounter` | `increase` |
+| `categoryRequired` | yes |
+| `counterAccountRequired` | yes |
+| `counterAmountRequired` | no |
+| `counterAccountsMustDiffer` | no |
+| `payload` | `{ "v": 1 }` |
+
+Columns:
+
+| Field | Role |
+|-------|------|
+| `accountId` | Receiving account. Balance += `amountMinor`. Debt unchanged (unless this is also the debt account). |
+| `counterAccountId` | Debt account. May be the same as `accountId`. Debt += `amountMinor`. Balance unchanged (unless this is also the receiving account). |
+| `counterAmountMinor` / `feeCategoryId` | Must be null. |
+
+Paying the debt later is still a **`repayment`** whose `counterAccountId` is that debt account.
 
 ### `prepayment`
 
@@ -209,6 +243,7 @@ Move value between **two of your accounts**. WeChat balance withdrawn to a bank 
 | `categoryRequired` | yes (classify the move; any subcategory, not hardcoded to the Transfer main) |
 | `counterAccountRequired` | yes |
 | `counterAmountRequired` | yes |
+| `counterAccountsMustDiffer` | yes |
 | `payload` | `{ "v": 1 }` |
 
 Columns (not payload):

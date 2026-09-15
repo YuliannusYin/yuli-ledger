@@ -199,6 +199,7 @@ export default function ReportsScreen({
           <p className="muted">
             {t("report.secondary", {
               repayment: formatMinor(report.secondaryRepayment, locale),
+              loan: formatMinor(report.secondaryLoan, locale),
               volume: formatMinor(report.secondaryTransferVolume, locale),
               fees: formatMinor(report.secondaryTransferFees, locale),
             })}

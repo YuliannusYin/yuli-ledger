@@ -3,6 +3,7 @@ import { SCREENS, type ScreenId } from "../lib/types";
 
 const ICONS: Record<ScreenId, string> = {
   record: "R",
+  pending: "I",
   ledger: "L",
   reports: "P",
   accounts: "A",
@@ -13,11 +14,13 @@ const ICONS: Record<ScreenId, string> = {
 export default function NavRail({
   screen,
   collapsed,
+  pendingCount,
   onScreen,
   onToggle,
 }: {
   screen: ScreenId;
   collapsed: boolean;
+  pendingCount: number;
   onScreen: (id: ScreenId) => void;
   onToggle: () => void;
 }) {
@@ -34,6 +37,9 @@ export default function NavRail({
         >
           <span className="rail-icon">{ICONS[id]}</span>
           {!collapsed && t(`nav.${id}`)}
+          {id === "pending" && pendingCount > 0 && (
+            <span className="rail-badge">{pendingCount > 99 ? "99+" : pendingCount}</span>
+          )}
         </button>
       ))}
       <button
