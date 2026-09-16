@@ -138,7 +138,7 @@ export default function TrashScreen({
   const filterEmpty = loaded && rows.length > 0 && visible.length === 0;
 
   return (
-    <div>
+    <div className="screen-fill">
       <h1>{t("nav.trash")}</h1>
       <div className="toolbar">
         <div className="seg">
@@ -164,7 +164,7 @@ export default function TrashScreen({
       </div>
       {error && <p className="err">{t(error)}</p>}
       <div className="ledger-layout">
-        <div className="surface" style={{ overflow: "auto" }}>
+        <div className="surface">
           {emptyAll && (
             <p className="muted" style={{ padding: 12 }}>
               {t("trash.empty")}

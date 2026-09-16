@@ -173,7 +173,7 @@ export default function LedgerScreen({
   const emptyAll = loaded && rows.length === 0 && !appliedActive(applied);
 
   return (
-    <div>
+    <div className="screen-fill">
       <h1>{t("nav.ledger")}</h1>
       <div className="filters">
         <div className="field">
@@ -284,7 +284,7 @@ export default function LedgerScreen({
         </button>
       </div>
       <div className="ledger-layout">
-        <div className="surface" style={{ overflow: "auto" }}>
+        <div className="surface">
           {emptyAll && (
             <p className="muted" style={{ padding: 12 }}>
               {t("ledger.empty")}

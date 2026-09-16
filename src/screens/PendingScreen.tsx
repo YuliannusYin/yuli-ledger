@@ -181,7 +181,7 @@ export default function PendingScreen({
   }
 
   return (
-    <div>
+    <div className="screen-fill">
       <h1>{t("nav.pending")}</h1>
       <div className="toolbar" style={{ marginBottom: 8 }}>
         <button type="button" className="btn" onClick={() => void downloadTemplate()}>
@@ -194,7 +194,7 @@ export default function PendingScreen({
       </div>
       {status && <p className="muted">{status}</p>}
       <div className="ledger-layout">
-        <div className="surface" style={{ overflow: "auto" }}>
+        <div className="surface">
           {loaded && rows.length === 0 && (
             <p className="muted" style={{ padding: 12 }}>
               {t("pending.empty")}
